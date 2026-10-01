@@ -1,7 +1,7 @@
 using UnityEngine;
 
 /// <summary>
-/// 敌人待机：无目标时站桩；有目标转追击。
+/// 敌人待机：意图为追击时转追击（意图由决策树低频写入 DesiredBehavior）。
 /// </summary>
 public sealed class EnemyIdleState : State<EnemyBlackboard>
 {
@@ -11,7 +11,7 @@ public sealed class EnemyIdleState : State<EnemyBlackboard>
 
     public override void HandleTransitions()
     {
-        if (Board.Target != null)
+        if (Board.DesiredBehavior == EnemyBehavior.Chase)
         {
             Machine.ChangeState(Board.Controller.ChaseState);
         }
