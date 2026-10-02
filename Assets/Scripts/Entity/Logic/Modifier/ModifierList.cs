@@ -17,7 +17,7 @@ using UnityEngine;
 public sealed class ModifierList
 {
     /// <summary>一条活跃中的效果实例（SO 模板 + 运行时状态）</summary>
-    private sealed class ActiveModifier
+    private sealed class Modifier
     {
         public ModifierEffect Effect;
         public bool ControlActive;         // 施加时刻定死：data.hasControl 且当时未处于霸体
@@ -26,13 +26,13 @@ public sealed class ModifierList
         public float PeriodicAccumulator;  // 周期累加器（跳伤用）
     }
 
-    private readonly Entity entity;
-    private readonly List<ActiveModifier> active = new List<ActiveModifier>();   // 挂载序 = 稳定序（同强度先挂者胜）
-    private ulong ownedTagMask;   // 容器域标签位（只扩张不收缩——位一旦归容器管，条目摘除后由 SyncOwned 清零）
+    private readonly Entity Entity;
+    private readonly List<Modifier> Modifiers = new();   // 挂载序 = 稳定序（同强度先挂者胜）
+    private ulong Mask;   // 容器域标签位（只扩张不收缩——位一旦归容器管，条目摘除后由 SyncOwned 清零）
 
     public ModifierList(Entity entity)
     {
-        this.entity = entity;
+        Entity = entity;
     }
 
     /// <summary>施加效果（命中入口/调试键调用）。
@@ -47,9 +47,9 @@ public sealed class ModifierList
         }
 
         // 同 SO 引用 = 同一条效果（数据驱动的同一性：同一份资产不管从哪里施加都归到一条）
-        for (int i = 0; i < active.Count; i++)
+        for (int i = 0; i < Modifiers.Count; i++)
         {
-            ActiveModifier existing = active[i];
+            Modifier existing = Modifiers[i];
             if (!ReferenceEquals(existing.Effect, modifier))
             {
                 continue;
@@ -80,10 +80,10 @@ public sealed class ModifierList
             return true;
         }
 
-        active.Add(new ActiveModifier
+        Modifiers.Add(new Modifier
         {
             Effect = modifier,
-            ControlActive = modifier.HasControl && !entity.Brain.Capability.HasControlImmunity(),   // 施加时刻定死
+            ControlActive = modifier.HasControl && !Entity.Brain.Capability.HasControlImmunity(),   // 施加时刻定死
             RemainingTime = modifier.Duration,
             Stacks = 1,
             PeriodicAccumulator = 0f,
@@ -96,15 +96,15 @@ public sealed class ModifierList
     /// 由 Brain 管线在状态机之前调用——控制投影当帧压制；帧末施加的效果次帧压制</summary>
     public void Tick(float deltaTime)
     {
-        for (int i = active.Count - 1; i >= 0; i--)
+        for (int i = Modifiers.Count - 1; i >= 0; i--)
         {
-            ActiveModifier modifier = active[i];
+            Modifier modifier = Modifiers[i];
             if (modifier.Effect.Duration > 0f)
             {
                 modifier.RemainingTime -= deltaTime;
                 if (modifier.RemainingTime <= 0f)
                 {
-                    active.RemoveAt(i);   // 倒序遍历中移除，保序
+                    Modifiers.RemoveAt(i);   // 倒序遍历中移除，保序
                     continue;
                 }
             }
@@ -116,7 +116,7 @@ public sealed class ModifierList
                 while (modifier.PeriodicAccumulator >= modifier.Effect.TickInterval)
                 {
                     modifier.PeriodicAccumulator -= modifier.Effect.TickInterval;
-                    entity.Brain.TakeDamage(modifier.Effect.DamagePerTick * modifier.Stacks);
+                    Entity.Brain.TakeDamage(modifier.Effect.DamagePerTick * modifier.Stacks);
                 }
             }
         }
@@ -127,9 +127,9 @@ public sealed class ModifierList
     public float GetStatMultiplier(EnumStatType type)
     {
         float result = 1f;
-        for (int i = 0; i < active.Count; i++)
+        for (int i = 0; i < Modifiers.Count; i++)
         {
-            ActiveModifier modifier = active[i];
+            Modifier modifier = Modifiers[i];
             StatModifierEntry[] modifiers = modifier.Effect.StatModifiers;
             for (int m = 0; m < modifiers.Length; m++)
             {
@@ -151,9 +151,9 @@ public sealed class ModifierList
     {
         get
         {
-            for (int i = 0; i < active.Count; i++)
+            for (int i = 0; i < Modifiers.Count; i++)
             {
-                if (active[i].ControlActive)
+                if (Modifiers[i].ControlActive)
                 {
                     return true;
                 }
@@ -167,11 +167,11 @@ public sealed class ModifierList
     public int Dispel(EnumModifierCategory filter)
     {
         int removed = 0;
-        for (int i = active.Count - 1; i >= 0; i--)
+        for (int i = Modifiers.Count - 1; i >= 0; i--)
         {
-            if ((active[i].Effect.Category & filter) != 0)
+            if ((Modifiers[i].Effect.Category & filter) != 0)
             {
-                active.RemoveAt(i);
+                Modifiers.RemoveAt(i);
                 removed++;
             }
         }
@@ -182,9 +182,9 @@ public sealed class ModifierList
     /// <summary>指定效果是否活跃（SO 引用比较；命中入口判"已在挂"用）</summary>
     public bool IsHolding(ModifierEffect modifier)
     {
-        for (int i = 0; i < active.Count; i++)
+        for (int i = 0; i < Modifiers.Count; i++)
         {
-            if (ReferenceEquals(active[i].Effect, modifier))
+            if (ReferenceEquals(Modifiers[i].Effect, modifier))
             {
                 return true;
             }
@@ -195,15 +195,15 @@ public sealed class ModifierList
     /// <summary>调试输出（仅 OnGUI 面板；拼串有分配，不上玩法路径）</summary>
     public string Describe()
     {
-        if (active.Count == 0)
+        if (Modifiers.Count == 0)
         {
             return "无";
         }
 
         StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < active.Count; i++)
+        for (int i = 0; i < Modifiers.Count; i++)
         {
-            ActiveModifier modifier = active[i];
+            Modifier modifier = Modifiers[i];
             if (sb.Length > 0)
             {
                 sb.Append('｜');
@@ -224,10 +224,10 @@ public sealed class ModifierList
     private void SyncProjection()
     {
         // 1) 失控呈现：活跃 controlActive 条目中 controlPriority 最高者（列表序稳定 = 同强度先挂者胜）
-        ActiveModifier best = null;
-        for (int i = 0; i < active.Count; i++)
+        Modifier best = null;
+        for (int i = 0; i < Modifiers.Count; i++)
         {
-            ActiveModifier modifier = active[i];
+            Modifier modifier = Modifiers[i];
             if (modifier.ControlActive && (best == null || modifier.Effect.ControlPriority > best.Effect.ControlPriority))
             {
                 best = modifier;
@@ -236,16 +236,16 @@ public sealed class ModifierList
 
         // 2) 标签投影：各活跃条目的 grantedTag 或起来；有失控条目再补 Controlled
         ulong desired = 0ul;
-        for (int i = 0; i < active.Count; i++)
+        for (int i = 0; i < Modifiers.Count; i++)
         {
-            desired |= (ulong)active[i].Effect.GrantedTag;
+            desired |= (ulong)Modifiers[i].Effect.GrantedTag;
         }
         if (best != null)
         {
             desired |= (ulong)EnumEntityTag.Controlled;
         }
-        ownedTagMask |= desired;   // 只扩张：位一旦归容器管，条目摘除后经 SyncOwned 清零
-        entity.Tags.SyncOwned(ownedTagMask, desired);
+        Mask |= desired;   // 只扩张：位一旦归容器管，条目摘除后经 SyncOwned 清零
+        Entity.Tags.SyncOwned(Mask, desired);
 
         // 3) CC 层状态呈现。失控解除（best 变 null）不在此清层——EntityStunState 轮询 HasControlActive
         //    自清；取舍：解除当帧门禁（Capability 查 CC 层活跃）会多拦一帧，观感级差异
@@ -253,8 +253,8 @@ public sealed class ModifierList
         {
             return;
         }
-        EntityStateMachine machine = entity.Brain.Machine;
-        EntityState target = entity.Brain.ResolveControlState(best.Effect.ControlKind);
+        EntityStateMachine machine = Entity.Brain.Machine;
+        EntityState target = Entity.Brain.ResolveControlState(best.Effect.ControlKind);
         EntityState current = machine.GetActive(EnumStateLayer.CrowdControl);
         if (current == target)
         {
