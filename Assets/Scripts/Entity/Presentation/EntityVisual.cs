@@ -43,15 +43,15 @@ public sealed class EntityVisual : MonoBehaviour
 
         // 各活跃层状态名（如"Sprint｜Air｜Attack"），未激活的层不显示
         string machineState = $"{DescribeLayer(EnumStateLayer.Locomotion)}｜{DescribeLayer(EnumStateLayer.Aerial)}";
-        if (brain.Machine.GetActive(EnumStateLayer.Action) != null)
+        if (brain.StateMachine.GetActive(EnumStateLayer.Action) != null)
         {
             machineState += $"｜{DescribeLayer(EnumStateLayer.Action)}";
         }
-        if (brain.Machine.GetActive(EnumStateLayer.CrowdControl) != null)
+        if (brain.StateMachine.GetActive(EnumStateLayer.CrowdControl) != null)
         {
             machineState += $"｜{DescribeLayer(EnumStateLayer.CrowdControl)}";
         }
-        string attackLine = brain.Machine.GetActive(EnumStateLayer.Action) is EntityAttackState attack
+        string attackLine = brain.StateMachine.GetActive(EnumStateLayer.Action) is EntityAttackState attack
             ? $"\n攻击 {attack.Phase}"
             : "";
         string weaponLine = DescribeWeapon();
@@ -71,7 +71,7 @@ public sealed class EntityVisual : MonoBehaviour
     /// <summary>某层活跃状态名（未激活显示 "-"）</summary>
     private string DescribeLayer(EnumStateLayer layer)
     {
-        EntityState state = Entity.Brain.Machine.GetActive(layer);
+        EntityState state = Entity.Brain.StateMachine.GetActive(layer);
         return state != null ? state.StateName : "-";
     }
 
