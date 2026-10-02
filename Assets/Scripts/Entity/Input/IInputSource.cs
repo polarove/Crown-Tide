@@ -7,7 +7,5 @@
 /// </summary>
 public interface IInputSource
 {
-    /// <summary>每帧采集：电平直接写、边沿置位（边沿也可能在帧间回调里置位）。
-    /// 帧首已 ResetLevels——本帧不写 = 本帧站桩</summary>
     void GatherCommands(CommandBuffer commands);
 }
