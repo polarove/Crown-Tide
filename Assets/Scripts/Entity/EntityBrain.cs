@@ -33,7 +33,7 @@ public sealed class EntityBrain : MonoBehaviour
     public CommandBuffer Commands { get; private set; }
 
     /// <summary>分层状态机（Bootstrap 构造）</summary>
-    public EntityStateMachine Machine { get; private set; }
+    public EntityStateMachine StateMachine { get; private set; }
 
     /// <summary>修饰列表（Bootstrap 构造）</summary>
     public ModifierList Modifiers { get; private set; }
@@ -86,19 +86,19 @@ public sealed class EntityBrain : MonoBehaviour
         Modifiers = new ModifierList(entity);
         Capability = new EntityCapabilities(entity);
 
-        Machine = new EntityStateMachine();
+        StateMachine = new EntityStateMachine();
         // Locomotion 层（水平移动，空中照常执行）
-        IdleState = new EntityIdleState(entity, Machine);
-        WalkState = new EntityWalkState(entity, Machine);
-        SprintState = new EntitySprintState(entity, Machine);
+        IdleState = new EntityIdleState(entity, StateMachine);
+        WalkState = new EntityWalkState(entity, StateMachine);
+        SprintState = new EntitySprintState(entity, StateMachine);
         // Aerial 层（竖直姿态：起跳/离地/落地判定）
-        GroundedState = new EntityGroundedState(entity, Machine);
-        AirState = new EntityAirState(entity, Machine);
+        GroundedState = new EntityGroundedState(entity, StateMachine);
+        AirState = new EntityAirState(entity, StateMachine);
         // Action 层（主动动作；平时不激活，TryConsumeAction 触发时才进状态）
-        AttackState = new EntityAttackState(entity, Machine);
+        AttackState = new EntityAttackState(entity, StateMachine);
         // CrowdControl 层（失控；平时不激活，ModifierList 投影时才进状态）
-        StunState = new EntityStunState(entity, Machine);
-        Machine.Initialize(IdleState, GroundedState);   // 各层初始状态
+        StunState = new EntityStunState(entity, StateMachine);
+        StateMachine.Initialize(IdleState, GroundedState);   // 各层初始状态
 
         // 失控呈现注册（EnumControlKind.Stun → 眩晕态；将来冰冻在此加一行）
         controlStates[EnumControlKind.Stun] = StunState;
@@ -167,7 +167,7 @@ public sealed class EntityBrain : MonoBehaviour
         TryConsumeAction();
 
         // 7) 状态机两遍 Tick（全层转换 → 全层动作；CC 压制惰性求值；连段推进在 AttackState）
-        Machine.TwoPassTick(deltaTime);
+        StateMachine.TwoPassTick(deltaTime);
 
         // 8) 跳跃消费（冲量类过 CC 门禁，防绕过层压制）
         TryConsumeJump();
@@ -188,7 +188,7 @@ public sealed class EntityBrain : MonoBehaviour
     private void TryConsumeAction()
     {
         // ---- 攻击：Action 层空闲时起手并消费；攻击中留给 AttackState.Tick 的续段判定 ----
-        if (Commands.AttackQueued && Machine.GetActive(EnumStateLayer.Action) == null)
+        if (Commands.AttackQueued && StateMachine.GetActive(EnumStateLayer.Action) == null)
         {
             if (Capability.CanAct())
             {
@@ -203,7 +203,7 @@ public sealed class EntityBrain : MonoBehaviour
                 {
                     AttackState.BeginCombo();
                 }
-                Machine.ChangeState(AttackState);
+                StateMachine.ChangeState(AttackState);
             }
             Commands.AttackQueued = false;   // 起手或门禁拒绝都清（无缓冲；攻击中的续段由状态自己消费）
         }

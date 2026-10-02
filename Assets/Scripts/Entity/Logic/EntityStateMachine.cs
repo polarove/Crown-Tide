@@ -8,7 +8,7 @@ using UnityEngine;
 ///   （与"切换当帧即换速度"的手感一致），每层不做链式转换；
 /// - 压制规则（EnumStateLayerRules）：失控层活跃时其余层冻结（不转换、不执行）但状态保留，
 ///   解除后自动恢复；压制判定在轮到每层时惰性求值，保证解除当帧即恢复；
-/// - 未激活的层（active 为 null，如不跳跃实体的 Aerial 层）直接跳过。
+/// - 未激活的层（Active 为 null，如不跳跃实体的 Aerial 层）直接跳过。
 /// deltaTime 全链入参（不用 Time.deltaTime——网络时间纪律）。
 /// 由 EntityBrain.Bootstrap 构造一次、Brain.Update 里 TwoPassTick。
 /// </summary>
@@ -16,18 +16,18 @@ public sealed class EntityStateMachine
 {
     private static readonly int LayerCount = Enum.GetValues(typeof(EnumStateLayer)).Length;
 
-    private readonly EntityState[] active = new EntityState[LayerCount];
+    private readonly EntityState[] Active = new EntityState[LayerCount];
 
     /// <summary>取某层当前活跃状态；层未激活返回 null</summary>
     public EntityState GetActive(EnumStateLayer layer)
     {
-        return active[(int)layer];
+        return Active[(int)layer];
     }
 
     /// <summary>该状态实例当前是否在其所属的层上活跃</summary>
     public bool IsActive(EntityState state)
     {
-        return state != null && active[(int)state.Layer] == state;
+        return state != null && Active[(int)state.Layer] == state;
     }
 
     /// <summary>
@@ -40,12 +40,12 @@ public sealed class EntityStateMachine
         {
             EntityState state = initialStates[i];
             int layerIndex = (int)state.Layer;
-            if (active[layerIndex] != null)
+            if (Active[layerIndex] != null)
             {
-                Debug.LogWarning($"状态机初始化：{state.Layer} 层已有初始状态 {active[layerIndex].StateName}，忽略 {state.StateName}");
+                Debug.LogWarning($"状态机初始化：{state.Layer} 层已有初始状态 {Active[layerIndex].StateName}，忽略 {state.StateName}");
                 continue;
             }
-            active[layerIndex] = state;
+            Active[layerIndex] = state;
             state.Enter();
         }
     }
@@ -55,16 +55,16 @@ public sealed class EntityStateMachine
     {
         for (int i = 0; i < LayerCount; i++)
         {
-            if (active[i] != null && !IsSuppressed(i))
+            if (Active[i] != null && !IsSuppressed(i))
             {
-                active[i].HandleTransitions();
+                Active[i].HandleTransitions();
             }
         }
         for (int i = 0; i < LayerCount; i++)
         {
-            if (active[i] != null && !IsSuppressed(i))
+            if (Active[i] != null && !IsSuppressed(i))
             {
-                active[i].Tick(deltaTime);
+                Active[i].Tick(deltaTime);
             }
         }
     }
@@ -81,13 +81,13 @@ public sealed class EntityStateMachine
         }
 
         int layerIndex = (int)nextState.Layer;
-        if (active[layerIndex] == nextState)
+        if (Active[layerIndex] == nextState)
         {
             return;
         }
 
-        active[layerIndex]?.Exit();
-        active[layerIndex] = nextState;
+        Active[layerIndex]?.Exit();
+        Active[layerIndex] = nextState;
         nextState.Enter();
     }
 
@@ -95,8 +95,8 @@ public sealed class EntityStateMachine
     public void ClearState(EnumStateLayer layer)
     {
         int layerIndex = (int)layer;
-        active[layerIndex]?.Exit();
-        active[layerIndex] = null;
+        Active[layerIndex]?.Exit();
+        Active[layerIndex] = null;
     }
 
     /// <summary>是否有任一活跃状态声明了霸体（免疫 CrowdControl 的进入，不解除已生效的）。
@@ -105,7 +105,7 @@ public sealed class EntityStateMachine
     {
         for (int i = 0; i < LayerCount; i++)
         {
-            EntityState state = active[i];
+            EntityState state = Active[i];
             if (state != null && state.GrantsSuperArmor)
             {
                 return true;
@@ -119,7 +119,7 @@ public sealed class EntityStateMachine
     {
         for (int j = 0; j < LayerCount; j++)
         {
-            if (active[j] != null && EnumStateLayerRules.Suppresses((EnumStateLayer)j, (EnumStateLayer)layerIndex))
+            if (Active[j] != null && EnumStateLayerRules.Suppresses((EnumStateLayer)j, (EnumStateLayer)layerIndex))
             {
                 return true;
             }

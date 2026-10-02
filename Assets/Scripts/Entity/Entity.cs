@@ -64,7 +64,7 @@ public sealed class Entity : MonoBehaviour
     public bool IsDead => Vitals.IsDead;
 
     /// <summary>是否冲刺中（Locomotion 层活跃态判定；CameraRig 读它做奔跑加速的呈现）</summary>
-    public bool IsSprinting => Brain.Machine.GetActive(EnumStateLayer.Locomotion) is EntitySprintState;
+    public bool IsSprinting => Brain.StateMachine.GetActive(EnumStateLayer.Locomotion) is EntitySprintState;
 
     private void Awake()
     {

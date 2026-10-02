@@ -69,9 +69,8 @@ public abstract class EntityState
         }
 
         WeaponComboGraph comboGraph = Entity.Slots.CurrentComboGraph;
-        float comboGraphMultiplier = comboGraph != null ? comboGraph.MoveSpeedMultiplier : 1f;
         float finalSpeed = baseSpeed
-            * comboGraphMultiplier
+            * comboGraph.MoveSpeedMultiplier
             * Entity.Brain.Modifiers.GetStatMultiplier(EnumStatType.MoveSpeed);
         Entity.Motor.MoveHorizontal(finalSpeed, Entity.Commands.MoveDirection);
     }
