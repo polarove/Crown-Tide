@@ -13,12 +13,4 @@ public class CharacterDefinition : ScriptableObject
     [Header("体质")]
     [Tooltip("最大生命值（CurrentHealth 的上限与初始值，活属性——Play 模式改了下一帧生效）")]
     public float maxHealth = 100f;
-
-    [Header("攻击节奏（基础值，武器攻速会修正）")]
-    [Tooltip("前摇时长（秒）：按下攻击到出手判定之间")]
-    public float attackWindup = 0.15f;
-    [Tooltip("命中帧时长（秒）：出手判定窗口")]
-    public float attackHit = 0.1f;
-    [Tooltip("后摇时长（秒）：出手到可以再次行动")]
-    public float attackRecovery = 0.3f;
 }

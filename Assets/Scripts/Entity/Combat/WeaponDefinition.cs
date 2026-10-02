@@ -15,4 +15,13 @@ public class WeaponDefinition : ScriptableObject
 
     [Tooltip("挥剑期间受伤乘数（Swinging 标签的解释器）：1 = 不减免（默认，标记纯命名）；0.7 = 挥剑期间受到的伤害 ×0.7；<= 0 视为无效回退 1")]
     public float swingDamageTakenMultiplier = 1f;
+
+
+    [Header("攻击节奏（基础值，武器攻速会修正）")]
+    [Tooltip("前摇时长（秒）：按下攻击到出手判定之间")]
+    public float attackWindup = 0.15f;
+    [Tooltip("命中帧时长（秒）：出手判定窗口")]
+    public float attackHit = 0.1f;
+    [Tooltip("后摇时长（秒）：出手到可以再次行动")]
+    public float attackRecovery = 0.3f;
 }

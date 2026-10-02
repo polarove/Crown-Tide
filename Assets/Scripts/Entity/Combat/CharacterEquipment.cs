@@ -8,6 +8,8 @@ using UnityEngine;
 /// 只组合"角色 × 武器"两表——Buff/Debuff 的临时乘数在消费读点再乘（效果容器乘法链，见 StatType）。
 /// M3 后续：饰品槽、技能槽数组也挂这里。
 /// </summary>
+[RequireComponent(typeof(CharacterDefinition))]
+[RequireComponent(typeof(WeaponDefinition))]
 public class CharacterEquipment : MonoBehaviour
 {
     [Header("角色")]
@@ -16,31 +18,34 @@ public class CharacterEquipment : MonoBehaviour
 
     [Header("武器")]
     [Tooltip("当前武器：攻速修正、挥剑解释器（M3 起伤害与连招表）；空 = 空手（攻速 1.0）")]
-    public WeaponDefinition weapon;
+    public WeaponDefinition primaryWeapon;
+
+    [Tooltip("当前武器：攻速修正、挥剑解释器（M3 起伤害与连招表）；空 = 空手（攻速 1.0）")]
+    public WeaponDefinition secondaryWeapon;
 
     // ---- 组合查询（状态/战斗系统读这里，不直接碰两张表）----
 
     /// <summary>最大生命 = 角色定义（空 = 内置默认 100）</summary>
-    public float MaxHealth => character != null ? character.maxHealth : 100f;
-
-    /// <summary>前摇时长 = 角色基础 ÷ 武器攻速</summary>
-    public float AttackWindup => (character != null ? character.attackWindup : 0.15f) / AttackSpeed;
-
-    /// <summary>命中帧时长 = 角色基础 ÷ 武器攻速</summary>
-    public float AttackHit => (character != null ? character.attackHit : 0.1f) / AttackSpeed;
-
-    /// <summary>后摇时长 = 角色基础 ÷ 武器攻速</summary>
-    public float AttackRecovery => (character != null ? character.attackRecovery : 0.3f) / AttackSpeed;
+    public float MaxHealth => character.maxHealth;
 
     /// <summary>武器攻速（空手或非法值 = 1）；÷ 语义：数值越大出手越快</summary>
-    private float AttackSpeed => weapon != null && weapon.attackSpeed > 0f ? weapon.attackSpeed : 1f;
+    private float AttackSpeed => primaryWeapon.attackSpeed;
+
+    /// <summary>前摇时长 = 角色基础 ÷ 武器攻速</summary>
+    public float AttackWindup => primaryWeapon.attackWindup / AttackSpeed;
+
+    /// <summary>命中帧时长 = 角色基础 ÷ 武器攻速</summary>
+    public float AttackHit => primaryWeapon.attackHit / AttackSpeed;
+
+    /// <summary>后摇时长 = 角色基础 ÷ 武器攻速</summary>
+    public float AttackRecovery => primaryWeapon.attackRecovery / AttackSpeed;
 
     /// <summary>挥剑标记（Swinging）解释器：攻击状态挂的标签由武器重写含义——
     /// 挥剑期间受伤乘数（1 = 默认无减免；<= 0 视为无效回退 1）。TakeDamage 的入口修正之一</summary>
     public float SwingDamageTakenMultiplier(bool swinging)
     {
-        return swinging && weapon != null && weapon.swingDamageTakenMultiplier > 0f
-            ? weapon.swingDamageTakenMultiplier
-            : 1f;
+        return swinging
+            && primaryWeapon != null
+            && primaryWeapon.swingDamageTakenMultiplier > 0f ? primaryWeapon.swingDamageTakenMultiplier : 1f;
     }
 }

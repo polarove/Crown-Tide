@@ -82,6 +82,7 @@ BuffSystem：机制同构（时长/来源/叠加/优先级）、正负要在同�
 | 容器与标签挂黑板；HP：CurrentHealth 黑板 + MaxHealth 装备活属性 + `TakeDamage`/占位 `Die`（NpcController） | `Entity/NPC/` |
 | 挥剑标记解释器：攻击状态挂摘 Swinging，武器 `swingDamageTakenMultiplier` 读它减免 | `NpcAttackState` + `WeaponDefinition` |
 | 消费读点 | MoveSpeed→ApplyLocomotion 乘；JumpPower→TryConsumeJump 乘；AttackSpeed→AttackState 时长除（钳 0.05 防除零）；DamageTaken→TakeDamage 乘；DamageDealt→M3 命中（挂账） |
+| 按次参数覆盖 | `Apply(target, effect, durationOverride, damagePerTickOverride)`：覆盖值定格在条目上不改资产（SO=全场共享模板，条目=本次施加的实例——改资产会全场生效且 Editor 下 Play 修改持久化写脏）。同一份流血资产，NPC1 施加 10s、NPC2 施加 3s；重复施加时参数以本次为准更新；乘数覆盖等出现需求再加 |
 | 调试链路 | PlayerController 槽拖演示 SO：F3 眩晕 / F4 急速 / F5 创伤 / F6 全驱散 / F7 眩晕场景其他角色（敌人侧回归） |
 
 **留待**：霸体拦截路径暂无消费者（还没有 GrantsSuperArmor=true 的状态），逻辑已就位，
