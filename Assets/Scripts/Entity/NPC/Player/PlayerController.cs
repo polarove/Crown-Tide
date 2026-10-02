@@ -35,6 +35,16 @@ public class PlayerController : NpcController
     [Tooltip("是否在屏幕左上角显示实时速度等调试信息")]
     public bool showDebugInfo = true;
 
+    [Header("调试效果（拖演示 SO：右键 Create → Crown Tide → 状态效果）")]
+    [Tooltip("F3：对自身施加（眩晕演示——失控/打断/自动解除全链路）")]
+    public StatusEffectData debugStunEffect;
+    [Tooltip("F4：对自身施加（急速演示——移速乘数）")]
+    public StatusEffectData debugHasteEffect;
+    [Tooltip("F5：对自身施加（创伤演示——周期跳伤/死亡占位）")]
+    public StatusEffectData debugWoundEffect;
+
+    private bool warnedMissingDebugEffects;   // 调试槽忘拖资产的一次性警告标记（防刷屏）
+
     // ---- 输入源内部状态（原黑板字段移入：点按/长按判定只有玩家输入才需要，NPC 不用知道）----
     private Vector2 moveInput;           // OnMove 持续更新（屏幕相对杆量，换算成世界方向后即失效）
     private bool sprintPressing;         // 加速键当前是否被按着
@@ -160,14 +170,59 @@ public class PlayerController : NpcController
         }
     }
 
-    /// <summary>调试输入：F3 触发眩晕（F1/F2 已被视角切换占用；正式眩晕来自战斗系统的击打效果）。
-    /// 设备直读不走输入资源；连按不叠加：同层同实例的 ChangeState 会被状态机忽略</summary>
+    /// <summary>调试输入（管线末尾）：F3/F4/F5 对自身施加调试效果、F6 全驱散、
+    /// F7 对场景内其他角色施加眩晕（敌人侧容器/投影链路回归）。
+    /// F1/F2 已被视角切换占用；正式效果来自战斗系统的命中入口；设备直读不走输入资源</summary>
     protected override void UpdateDebugInput()
     {
-        if (Keyboard.current != null && Keyboard.current.f3Key.wasPressedThisFrame)
+        Keyboard keyboard = Keyboard.current;
+        if (keyboard == null)
         {
-            StateMachine.ChangeState(StunState);
+            return;
         }
+
+        if (keyboard.f3Key.wasPressedThisFrame)
+        {
+            ApplyDebugEffect(debugStunEffect, "F3 眩晕");
+        }
+        if (keyboard.f4Key.wasPressedThisFrame)
+        {
+            ApplyDebugEffect(debugHasteEffect, "F4 急速");
+        }
+        if (keyboard.f5Key.wasPressedThisFrame)
+        {
+            ApplyDebugEffect(debugWoundEffect, "F5 创伤");
+        }
+        if (keyboard.f6Key.wasPressedThisFrame)
+        {
+            Effects.Dispel(this, StatusEffectCategory.All);
+        }
+        if (keyboard.f7Key.wasPressedThisFrame && debugStunEffect != null)
+        {
+            // 敌人侧回归：场景内其他角色走同一套容器/投影（FindObjectsByType 只在调试分支跑，不上玩法路径）
+            foreach (NpcController npc in FindObjectsByType<NpcController>())
+            {
+                if (npc != this)
+                {
+                    npc.Effects.Apply(npc, debugStunEffect);
+                }
+            }
+        }
+    }
+
+    /// <summary>调试施加：空槽一次性警告后跳过（容器对 null 也早退，这里负责把缺配置讲清楚）</summary>
+    private void ApplyDebugEffect(StatusEffectData effect, string keyName)
+    {
+        if (effect == null)
+        {
+            if (!warnedMissingDebugEffects)
+            {
+                warnedMissingDebugEffects = true;
+                Debug.LogWarning($"{keyName}：调试效果槽未拖 StatusEffectData 资产（此警告只提示一次）");
+            }
+            return;
+        }
+        Effects.Apply(this, effect);
     }
 
     // ---- 调试面板 ----
@@ -180,15 +235,12 @@ public class PlayerController : NpcController
             return;
         }
 
-        if (debugStyle == null)
-        {
-            debugStyle = new GUIStyle(GUI.skin.box)
+        debugStyle ??= new GUIStyle(GUI.skin.box)
             {
                 fontSize = 16,
                 alignment = TextAnchor.UpperLeft,
                 padding = new RectOffset(10, 10, 8, 8),
             };
-        }
 
         float horizontalSpeed = new Vector3(DebugVelocity.x, 0f, DebugVelocity.z).magnitude;
         string sprintState = sprintToggled ? "加速（点按）"
@@ -211,9 +263,11 @@ public class PlayerController : NpcController
         string attackLine = actionState is NpcAttackState attack ? $"\n攻击 {attack.Phase}" : "";
         string actionStatus = sprintAction != null ? "已找到" : "未找到（检查资源）";
         string scheme = playerInput != null ? playerInput.currentControlScheme : "-";
-        GUI.Label(new Rect(10f, 10f, 300f, 160f),
+        GUI.Label(new Rect(10f, 10f, 300f, 220f),
             $"水平速度 {horizontalSpeed:F2} m/s\n竖直速度 {DebugVelocity.y:F2} m/s\n状态 {sprintState}" +
-            $"\n状态机 {machineState}{attackLine}\n方案 {scheme}｜Sprint动作 {actionStatus}",
+            $"\n状态机 {machineState}{attackLine}\n生命 {NpcBoard.CurrentHealth:0}/{MaxHealth:0}" +
+            $"\n效果 {Effects.Describe()}\n标签 {NpcBoard.Tags.Describe()}" +
+            $"\n方案 {scheme}｜Sprint动作 {actionStatus}",
             debugStyle);
     }
 }

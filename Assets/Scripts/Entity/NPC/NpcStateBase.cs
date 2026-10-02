@@ -15,8 +15,9 @@ public abstract class NpcStateBase : State<NpcBlackboard>
 
     /// <summary>
     /// Locomotion 层统一移动出口：Action 层有声明 LocksMovement 的状态（攻击/闪避/吟唱）时
-    /// 站桩（清方向 + 零速 Move 保留贴地），否则按传入速度正常移动。
-    /// Idle/Walk/Sprint 的 Tick 都走这里——攻击锁移动只需一处生效。
+    /// 站桩（清方向 + 零速 Move 保留贴地），否则按传入速度 × 移速乘数正常移动
+    /// （MoveSpeed 乘法链——急速/减速全姿态生效，读点见 StatType）。
+    /// Idle/Walk/Sprint 的 Tick 都走这里——攻击锁移动、效果修饰移速都只需一处生效。
     /// </summary>
     protected void ApplyLocomotion(float speed)
     {
@@ -27,6 +28,6 @@ public abstract class NpcStateBase : State<NpcBlackboard>
             Board.Controller.ApplyHorizontalMovement(0f);
             return;
         }
-        Board.Controller.ApplyHorizontalMovement(speed);
+        Board.Controller.ApplyHorizontalMovement(speed * Board.Controller.GetStatMultiplier(StatType.MoveSpeed));
     }
 }

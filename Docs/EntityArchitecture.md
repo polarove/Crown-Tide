@@ -1,9 +1,10 @@
 # 单位与投射物架构选型指南
 
 > 适用范围：Crown Tide 实体架构（BlackBoard / Decision / StateMachine / Entity 分层）。
-> 对应代码：`Assets/Scripts/BlackBoard`（黑板）、`Assets/Scripts/Decision`（决策树）、
+> 对应代码：`Assets/Scripts/BlackBoard`（黑板、TagSet）、`Assets/Scripts/Decision`（决策树）、
 > `Assets/Scripts/StateMachine`（状态机）、`Assets/Scripts/Entity`（实体层：EntityController
-> 运动能力 + NpcController 统一角色层；玩家与敌人是它的两个输入源叶子，七状态在 NPC/States/ 共享）。
+> 运动能力 + NpcController 统一角色层；玩家与敌人是它的两个输入源叶子，七状态在 NPC/States/ 共享；
+> 状态效果三件在 StatusEffect/、命名标签 EntityTag/TagSet——三种机制见 §二末节）。
 > 本文档回答：每类"会动的东西"该用什么架构，以及为什么。
 > 战斗系统（指令层/装备/连招/选招/阶段）的落地排期见 `Docs/CombatSystemPlan.md`。
 
@@ -82,6 +83,62 @@ Air 并存，空中保持跑速、落地无缝续跑（落地转回 Grounded 不
 - Boss 削韧（Poise）= 霸体的资源化：黑板挂 Poise/MaxPoise，命中先扣韧性、韧尽才施加 CC；
   数值挂装备/技能配置（装什么会什么），Boss 阶层（PhaseDef）可覆盖 MaxPoise。
 - 同族扩展：无敌帧 `GrantsInvincibility`（命中入口跳过伤害与 CC）同模式加一行虚属性即可。
+
+### 命名状态的三种机制：状态机 / 效果容器 / 标签
+
+"角色现在处于什么状态"有三类来源，边界准则：**有行为（阶段过程、意图驱动转换）才是状态；
+纯修饰（数值/时长/叠加）归效果容器；纯命名（零效果）归标签**。判例：闪避有阶段过程
+（前闪/无敌帧/收势）→ Action 层状态，不是"闪避 Buff"；"攻击时赋予自身的挥剑标记"无行为
+→ 标签，效果由读方解释（见下）。Buff/Debuff 不是两种机制，是同一效果容器的正负两半。
+
+| 机制 | 载体 | 语义 | 典型例 | 生命周期 |
+|---|---|---|---|---|
+| 状态机 | StateLayer + State | 有行为：每帧 Tick 做事、意图驱动转换、层内互斥 | 走/跑/跳/攻击/闪避/眩晕态 | Enter/Exit 随转换 |
+| 效果容器 | StatusEffectContainer（黑板持有） | 纯修饰：控制/数值/周期三成分可并存、自由叠加、带时长 | 急速/冰冻/创伤/中毒 | Apply → Tick → 到期/驱散 |
+| 标签 | TagSet（黑板持有） | 纯命名：`Has(tag)` 真/假即全部语义，谁读谁解释 | 挥剑中/失控中/骑乘中 | 状态直写或容器投影 |
+
+三机制对业务代码的唯一汇合点是**统一查询门**：消费方不问"你在什么状态"，问投影后的语义
+——`Tags.Has((ulong)EntityTag.Swinging)` 与 `GetStatMultiplier(StatType.X)`。
+"冰冻"因此可以是容器条目（数值乘数 + 控制投影 + Controlled 标签）的组合，而移动/攻击/受伤
+的消费代码一行不改。
+
+**效果容器**（`StatusEffectData` SO + `StatusEffectContainer`，`Entity/StatusEffect/`）要点：
+
+- 一条效果 = **三成分**：控制（hasControl → 投影 CC 层）、数值（statModifiers 乘法链）、
+  周期（tickInterval 跳伤走 TakeDamage）；可只开其一——急速=纯数值、眩晕=纯控制、创伤=纯周期。
+- **失控多挂载单表达**：多条失控条目活跃时只呈现 controlPriority 最高者的映射状态
+  （`ResolveControlState`，默认眩晕；冰冻等由角色覆写映射）；更高者接管、逐个解除自动降级，
+  同强度先挂者保持。
+- **霸体仲裁在施加时刻定死**：`controlActive = hasControl && !HasSuperArmor`——免疫≠解控：
+  条目照挂、数值/周期照跑，失控成分被拦下（判"这发钉住没有"查 `HasControlActive`）。
+- 失控起手会**打断主动动作**：容器 ClearState(Action)，攻击 Exit 顺带摘挥剑标记——
+  攻击不会在眩晕后"续播"。
+- 驱散按类别位与过滤：`Dispel(Debuff)` 净化、`Dispel(Poison)` 驱毒、`Dispel(All)` 全清；
+  叠加策略 Refresh / Stack（满层回落为刷新时长）/ Ignore；Stack 条目层数 = 数值乘数指数
+  （1.5×3 层 ≈ 3.4）。
+
+**标签的读写解耦**（标记+解释器模式）：写方只命名——攻击状态 Enter/Exit 挂摘 Swinging；
+读方赋义——武器 SO 的 `swingDamageTakenMultiplier` 把"挥剑中"解释成受伤乘数，默认 1 =
+纯标记无效果，武器重写即获得效果。将来吸血/破甲/处决条件走同一模式，攻击状态零改动。
+标签写入者也分域：状态直写（Add/Remove）与容器投影（SyncOwned 只动自己域的位）互不踩脚。
+
+**数值乘数消费读点**（StatType；新乘数先登记读点再接效果，别处不得绕过读点直读容器）：
+
+| 乘数 | 读点 |
+|---|---|
+| MoveSpeed | NpcStateBase.ApplyLocomotion（全姿态生效） |
+| JumpPower | NpcController.TryConsumeJump（×2 乘数 ≈ 跳 1.41 倍高） |
+| AttackSpeed | NpcAttackState 攻击时长（÷ 语义，乘数钳下限 0.05 防除零） |
+| DamageTaken | NpcController.TakeDamage（统一伤害入口） |
+| DamageDealt | M3 命中入口（已挂账未读） |
+
+伤害与生命：**唯一入口 `TakeDamage(amount)`**（周期跳伤/将来命中/环境都走这里），
+入口修正 = DamageTaken 乘数 × 挥剑减伤，扣血钳 [0, MaxHealth]；归零走占位 Die
+（清指令 + 停管线，正式死亡演出/复活后置）。MaxHealth 是装备组合活属性，不进黑板。
+
+**术语映射**（讨论口径）："水平姿态"= Locomotion 层、"垂直姿态"= Aerial 层；
+"影响行动的 buff/debuff"= 控制投影与数值乘数；"不影响行动的"= 周期成分与纯标记；
+骑乘 = Riding 标签（+ 将来需要坐骑行为集时按 Boss Phase 同构处理：行为集切换）。
 
 ## 三、NPC（决策树输入源）：决策树 + 状态机 + 黑板（项目定案，统一使用）
 
@@ -190,5 +247,7 @@ StateMachine/State（如 `Spawn → Lock → Homing → Detonate`）；但只有
 2. **决策树组装**：`DecisionSelector`（优先级选择，恒真兜底收尾）为主力，`DecisionBranch`
    做二叉细分；全部纯 C#、构造一次、零每帧分配。
 3. **加投射物**：新建 `Assets/Scripts/Projectile/`（Config + Controller + 对象池），不继承 EntityController。
-4. **战斗系统**（指令层、装备驱动、连招数据表、Utility 选招、Boss 阶段、杂兵池化）：
+4. **加状态效果/标签**：Create → Crown Tide → 状态效果（StatusEffectData），按需勾三成分；
+   新标签先在 `EntityTag` 的 64 位分配登记表加行；新乘数先在 `StatType` 登记读点（见 §二末节表格）。
+5. **战斗系统**（指令层、装备驱动、连招数据表、Utility 选招、Boss 阶段、杂兵池化）：
    按 `Docs/CombatSystemPlan.md` 里程碑顺序推进。

@@ -13,6 +13,7 @@
 | 决策树框架（Selector/Leaf/Branch；decisionInterval 定时评估收在 EnemyController） | `Assets/Scripts/Decision/`、`Assets/Scripts/Entity/NPC/Enemy/EnemyController.cs` |
 | 统一角色层（NpcController 管线 + 七状态；玩家=输入设备输入源，NPC=决策树输入源） | `Assets/Scripts/Entity/EntityController.cs`、`Assets/Scripts/Entity/NPC/` |
 | 玩家与 NPC 共用 Idle/Walk/Sprint/Grounded/Air/Attack/Stun | `Assets/Scripts/Entity/NPC/States/` |
+| 效果容器 + 标签 + HP/伤害入口（M2.5，见下节） | `Assets/Scripts/Entity/StatusEffect/`、`Assets/Scripts/BlackBoard/TagSet.cs`、`Assets/Scripts/Entity/EntityTag.cs` |
 
 ## M1：技能指令最小闭环（玩家侧）
 
@@ -50,38 +51,45 @@
 验证：建两份角色 SO（快/慢）+ 两份武器 SO（攻速 0.8/1.2），
 四种组合的攻击节奏 = 基础 ÷ 攻速，Play 模式换引用即时生效。
 
-## M2.5：效果容器（Buff / Debuff 统一）
+## M2.5：效果容器（Buff / Debuff 统一）——已落地
 
 增益与减益是**同一套系统的正负两半**（急速=攻速×1.3，虚弱=伤害×0.7），不建第二套
 BuffSystem：机制同构（时长/来源/叠加/优先级）、正负要在同一处聚合抵消（虚弱-30% 与
-狂暴+30% 同挂）、驱散按标签过滤（清毒=只清 Debuff 标签、净化=全清、腐蚀=偷增益）。
+狂暴+30% 同挂）、驱散按类别位过滤（清毒=`Dispel(Poison)`、净化=`Dispel(Debuff)`、
+全清=`Dispel(All)`、腐蚀偷增益=M3 命中系统读 `IsHolding` 再反向 Apply）。
 增益/减益的真正区别只在 UI 图标颜色与净效果正负——表现层的事。
 
 **条目 = 三种成分**（可并存于同一个效果，冰冻可既控人又掉冰伤又降防）：
 
-| 成分 | 例子 | 归宿 |
+| 成分 | 例子 | 归宿（已落地） |
 |---|---|---|
-| 控制 | 眩晕/冰冻/击倒 | CC 层仲裁（霸体在 Apply 入口拦截） |
-| 数值 | 虚弱/急速/减速/跳跃强化 | `GetStatModifier(StatType)` 聚合，消费读点见下 |
-| 周期 | 中毒/燃烧 | 容器统一 tick，产出伤害事件 |
+| 控制 | 眩晕/冰冻/击倒 | 容器投影 CC 层（霸体在 Apply 入口仲裁，施加时刻定死 `controlActive`） |
+| 数值 | 虚弱/急速/减速/跳跃强化 | `GetStatMultiplier(StatType)` 乘法链，消费读点见下 |
+| 周期 | 中毒/燃烧 | 容器统一 tick 跳伤，走 `TakeDamage` 统一入口 |
 
 **多挂载，单表达**：实体可同时挂任意多条目（含多个失控型），各自独立倒计时；
-失控型的行为呈现取优先级最高者上 CC 层，逐个解除后降级到次优先级，全部到期
-`ClearState`。优先级表挂效果 SO（击飞>冰冻>眩晕>混乱，可配；同优先级先挂保持防抖）。
-数据层多挂、行为层单表达——两个失控并跑会打架（眩晕要站桩、混乱要乱走），身体只能听一个。
+失控型的行为呈现取 controlPriority 最高者投影 CC 层（映射走 `ResolveControlState`，
+默认眩晕，冰冻/石化由角色覆写），更高者接管、逐个解除自动降级、全部消失由 StunState
+轮询 `HasControlActive` 清层。同优先级先挂保持防抖。数据层多挂、行为层单表达——
+两个失控并跑会打架（眩晕要站桩、混乱要乱走），身体只能听一个。
 
-**落点**：
+**落地清单**：
 
 | 部件 | 位置 |
 |---|---|
-| StatusEffectId / StatType / StatusEffectData（SO：时长、叠加规则、成分数值、Buff/Debuff 标签、优先级） | `Entity/StatusEffect/` |
-| StatusEffectContainer（Apply 含霸体仲裁 / Tick 时长 / 聚合查询 / CC 投影） | 黑板持有 |
-| 消费读点 | 移速→ApplyHorizontalMovement 统一乘；跳跃强化→TryConsumeJump 乘；攻速→AttackState 时长除；伤害→命中计算乘 |
+| StatType / StatusEffectData（SO：时长、叠加策略 Refresh/Stack/Ignore、三成分数值、Category 位、优先级）/ StatusEffectContainer | `Entity/StatusEffect/` |
+| TagSet（框架位运算）+ EntityTag（64 位分配登记表） | `BlackBoard/TagSet.cs`、`Entity/EntityTag.cs` |
+| 容器与标签挂黑板；HP：CurrentHealth 黑板 + MaxHealth 装备活属性 + `TakeDamage`/占位 `Die`（NpcController） | `Entity/NPC/` |
+| 挥剑标记解释器：攻击状态挂摘 Swinging，武器 `swingDamageTakenMultiplier` 读它减免 | `NpcAttackState` + `WeaponDefinition` |
+| 消费读点 | MoveSpeed→ApplyLocomotion 乘；JumpPower→TryConsumeJump 乘；AttackSpeed→AttackState 时长除（钳 0.05 防除零）；DamageTaken→TakeDamage 乘；DamageDealt→M3 命中（挂账） |
+| 调试链路 | PlayerController 槽拖演示 SO：F3 眩晕 / F4 急速 / F5 创伤 / F6 全驱散 / F7 眩晕场景其他角色（敌人侧回归） |
 
-**特殊形态备忘**：护盾=池不是乘数（伤害入口先扣盾）；隐身持续型=容器条目+敌方感知查
-IsHidden，瞬发型=状态声明（GrantsInvincibility 同模式）；强制行为型（血怒）=NPC 走决策树
-最高优先级分支、玩家走 CC 层（混乱同款双侧投影）；届时 StunState 的时长职责上移容器，
-F1 调试触发改走 `container.Apply(stunEffect)`。
+**留待**：霸体拦截路径暂无消费者（还没有 GrantsSuperArmor=true 的状态），逻辑已就位，
+M3 技能演出状态接入时验证；死亡为占位（冻结实体），演出/复活后置。
+
+**特殊形态备忘**：护盾=池不是乘数（伤害入口先扣盾）；隐身持续型=容器条目+grantedTag、
+敌方感知查标签，瞬发型=状态声明（GrantsInvincibility 同模式）；强制行为型（血怒）=NPC 走
+决策树最高优先级分支、玩家走 CC 层（混乱同款双侧投影）。
 
 ## M3：连招数据表 + 通用攻击状态
 
@@ -128,7 +136,9 @@ F1 调试触发改走 `container.Apply(stunEffect)`。
   实现倾向轻量（阈值事件 + 换引用）；阶段间需要 Enter/Exit 演出时再考虑复用 StateMachine
 - 演出节点（转阶段演出、处决 QTE）= 普通状态，进 NPC 状态机
 - 杂兵池：`Assets/Scripts/Pool/SimplePool.cs`（通用对象池，投射物将来同用）：
-  预热、取出/归还、禁用期零 Update；归还时重置黑板与状态机到 Idle（防状态残留）
+  预热、取出/归还、禁用期零 Update；归还时重置黑板与状态机到 Idle（防状态残留），
+  重置面覆盖效果容器（清条目/驱散）、标签（清位）、CurrentHealth（回 MaxHealth）与
+  死亡标志（NpcController 复活入口届时一并给）
 
 验证：Boss 100%/60%/30% 三阶段换行为集（换连招表肉眼可辨）；
 杂兵批量生成/回收无 GC、无状态残留。
