@@ -133,6 +133,7 @@ GameObject:
   - component: {fileID: 249588917}
   - component: {fileID: 249588916}
   - component: {fileID: 249588921}
+  - component: {fileID: 249588922}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -154,18 +155,137 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
   walkSpeed: 16
   turnSpeed: 10
-  jumpHeight: 2
   gravity: -20
-  sprintSpeed: 16
-  sprintMode: 0
-  sprintTapTime: 0.3
   apexHangGravityMultiplier: 0.5
   apexHangVerticalSpeedThreshold: 1.5
   fallingGravityMultiplier: 1.5
   groundCheckDistance: 0.25
   groundMask:
-    serializedVersion: 2
     m_Bits: 4294967295
+  <CharacterController>k__BackingField: {fileID: 0}
+  <Equipment>k__BackingField: {fileID: 0}
+  jumpHeight: 2
+  sprintMultiplier: 1.6
+  lastFramePosition: {x: 0, y: 0, z: 0}
+  <DebugVelocity>k__BackingField: {x: 0, y: 0, z: 0}
+  dead: 0
+  sprintMode: 0
+  sprintTapTime: 0.3
+  showDebugInfo: 1
+  debugStunEffect: {fileID: 11400000, guid: 4b32b394190730c42bbda2051f731e3a, type: 2}
+  debugHasteEffect: {fileID: 0}
+  debugWoundEffect: {fileID: 0}
+  warnedMissingDebugEffects: 0
+  moveInput: {x: 0, y: 0}
+  sprintPressing: 0
+  sprintPressTime: 0
+  sprintToggled: 0
+  sprintHoldActive: 0
+  playerInput: {fileID: 0}
+  sprintAction:
+    m_Name: 
+    m_Type: 0
+    m_ExpectedControlType: 
+    m_Id: 948878a5-f731-478c-87a8-8b1de4627168
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings: []
+    m_Flags: 0
+    m_Priority: 0
+  debugStyle:
+    m_Name: 
+    m_Normal: {m_Background: {fileID: 0}, m_ScaledBackgrounds: []
+, m_TextColor:
+        r: 0
+        g: 0
+        b: 0
+        a: 1
+}
+    m_Hover: {m_Background: {fileID: 0}, m_ScaledBackgrounds: []
+, m_TextColor:
+        r: 0
+        g: 0
+        b: 0
+        a: 1
+}
+    m_Active: {m_Background: {fileID: 0}, m_ScaledBackgrounds: []
+, m_TextColor:
+        r: 0
+        g: 0
+        b: 0
+        a: 1
+}
+    m_Focused: {m_Background: {fileID: 0}, m_ScaledBackgrounds: []
+, m_TextColor:
+        r: 0
+        g: 0
+        b: 0
+        a: 1
+}
+    m_OnNormal: {m_Background: {fileID: 0}, m_ScaledBackgrounds: []
+, m_TextColor:
+        r: 0
+        g: 0
+        b: 0
+        a: 1
+}
+    m_OnHover: {m_Background: {fileID: 0}, m_ScaledBackgrounds: []
+, m_TextColor:
+        r: 0
+        g: 0
+        b: 0
+        a: 1
+}
+    m_OnActive: {m_Background: {fileID: 0}, m_ScaledBackgrounds: []
+, m_TextColor:
+        r: 0
+        g: 0
+        b: 0
+        a: 1
+}
+    m_OnFocused: {m_Background: {fileID: 0}, m_ScaledBackgrounds: []
+, m_TextColor:
+        r: 0
+        g: 0
+        b: 0
+        a: 1
+}
+    m_Border:
+      m_Left: 0
+      m_Right: 0
+      m_Top: 0
+      m_Bottom: 0
+    m_Margin:
+      m_Left: 0
+      m_Right: 0
+      m_Top: 0
+      m_Bottom: 0
+    m_Padding:
+      m_Left: 0
+      m_Right: 0
+      m_Top: 0
+      m_Bottom: 0
+    m_Overflow:
+      m_Left: 0
+      m_Right: 0
+      m_Top: 0
+      m_Bottom: 0
+    m_Font: {fileID: 0}
+    m_FontSize: 0
+    m_FontStyle: 0
+    m_Alignment: 0
+    m_WordWrap: 0
+    m_RichText: 1
+    m_TextClipping: 0
+    m_ImagePosition: 0
+    m_ContentOffset: {x: 0, y: 0}
+    m_ContentSpacing: 1
+    m_FixedWidth: 0
+    m_FixedHeight: 0
+    m_ImageIsTopAligned: 0
+    m_StretchWidth: 1
+    m_StretchHeight: 0
+    m_IsSDF: 0
 --- !u!143 &249588917
 CharacterController:
   m_ObjectHideFlags: 0
@@ -289,10 +409,25 @@ MonoBehaviour:
       m_Calls: []
   m_ActionEvents: []
   m_NeverAutoSwitchControlSchemes: 0
-  m_DefaultControlScheme:
+  m_DefaultControlScheme: 
   m_DefaultActionMap: Player
   m_SplitScreenIndex: -1
   m_Camera: {fileID: 330585545}
+--- !u!114 &249588922
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 249588915}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3152ffa0059a9d542a3530e5c0eea997, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CharacterEquipment
+  character: {fileID: 0}
+  primaryWeapon: {fileID: 0}
+  secondaryWeapon: {fileID: 0}
 --- !u!1 &330585543
 GameObject:
   m_ObjectHideFlags: 0
@@ -460,9 +595,54 @@ MonoBehaviour:
   minimumCameraDistance: 2
   groundSearchDistance: 10
   groundMask:
-    serializedVersion: 2
     m_Bits: 4294967295
   lockAndHideCursor: 1
+  gamepadLookAction:
+    m_Name: 
+    m_Type: 0
+    m_ExpectedControlType: 
+    m_Id: da192af6-1694-4861-b1da-55b7df201734
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings: []
+    m_Flags: 0
+    m_Priority: 0
+  mouseLookAction:
+    m_Name: 
+    m_Type: 0
+    m_ExpectedControlType: 
+    m_Id: d3919aa3-1329-43e1-965e-f6875e05ed43
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings: []
+    m_Flags: 0
+    m_Priority: 0
+  switchShoulderAction:
+    m_Name: 
+    m_Type: 0
+    m_ExpectedControlType: 
+    m_Id: 55d1ecb3-d728-4950-8142-19753b91f913
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings: []
+    m_Flags: 0
+    m_Priority: 0
+  toggleViewModeAction:
+    m_Name: 
+    m_Type: 0
+    m_ExpectedControlType: 
+    m_Id: bc238715-93ea-460a-a427-4d7c61caf322
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings: []
+    m_Flags: 0
+    m_Priority: 0
+  yawRotationAngle: 0
+  pitchRotationAngle: 20
+  shoulderSideBlendFactor: 1
+  isFirstPersonMode: 0
+  firstPersonBlendFactor: 0
+  playerMeshRenderers: []
 --- !u!1 &410087039
 GameObject:
   m_ObjectHideFlags: 0
