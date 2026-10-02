@@ -16,6 +16,11 @@ public class CharacterConfigSO : ScriptableObject
     [Tooltip("信心区间上界：信心值 ∈ [-此值, +此值]（对称钟摆，初始居中 0）。冠冕技能涨、潮汐技能降，贴边锁向防单一依赖")]
     public int FaithCapacity = 67;
 
+    [Tooltip("受击时信心往潮汐方向降低的幅度（配正数，方向由技能位钦定不可能配反；0 = 关闭）。" +
+             "受伤动摇信心、不问伤害来源——被自己附身的怪打、多人被队友误伤同规则；" +
+             "贴边 -FaithCapacity 自然封底，潮汐大技能就在这条负向通道上攒")]
+    public int FaithLossPerHit = 5;
+
     [Header("手部容量")]
     [Tooltip("双手总容量：主手 + 副手武器的 handCost 之和不得超过它。5 = 双匕首(2+2)可行、巨斧(5)单持可行但无法双持、圣剑(9)装不上")]
     public int WeaponCapacity = 5;

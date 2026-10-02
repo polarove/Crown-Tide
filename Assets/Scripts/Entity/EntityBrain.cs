@@ -12,8 +12,8 @@ using UnityEngine;
 /// 4 死亡门（清边沿指令 return；不用 enabled=false——那会杀掉网络回调，多人纪律）；
 /// 5 地面检测 → 6 主动作消费（起手当帧进前摇）→ 7 状态机两遍 Tick（水平移动/连段推进）
 /// → 8 跳跃消费 → 9 重力 → 10 转向 → 11 调试采样。
-/// 输入源绑定：IsPlayerControlled 的唯一职责（true=PlayerInputSource，false=AITreeInputSource）；
-/// 双源同挂物体、切换只换绑定（附身演示）。
+/// 输入源绑定：控制状态的唯一真相 = InputSource（is PlayerInputSource 即玩家驱动）；
+/// Entity.startPlayerControlled 只决定开局绑定，双源同挂物体、运行时切换只换绑定（F10 附身演示）。
 /// deltaTime 全链传参（换 NetworkTime/固定 tick 只改本类取时一处——网络时间纪律）。
 /// </summary>
 [RequireComponent(typeof(EntityMotor))]
@@ -72,12 +72,42 @@ public sealed class EntityBrain : MonoBehaviour
     }
 
     // 两输入源组件（双源同挂是附身演示的前提；缺失对应源时该侧绑定失败并警告）
-    private PlayerInputSource? PlayerSource;
-    private AITreeInputSource? AiSource;
+    public PlayerInputSource? PlayerSource;
+    public AITreeInputSource? AiSource;
     private bool WarnedMissingSource;
 
     // 调试采样：本帧实测速度（位置差反推，比状态选的速度更可信，能反映碰撞和重力）
     private Vector3 LastFramePosition;
+
+    // 首帧附身唯一性自检标记（一次性）
+    private bool CheckedPossessionUniqueness;
+
+    // 当前生效的附身会话载体（buff 侧是唯一真相；这里只记"上一帧挂的是哪一份"，
+    // 用于识别"被摘掉了"= 会话结束，从而换回输入源）
+    private PossessionEffect? ActivePossession;
+
+    /// <summary>首帧自检：提示"多个玩家驱动实体共享本地输入设备"的单机现象。
+    /// 多人语义（需求钦定）：玩家驱动 = Brain.InputSource 是 PlayerInputSource——多人下
+    /// N 个玩家驱动实体是常态（各自 PlayerInput 配对各自设备 / 走网络中继）；单机调试下
+    /// 多个实体被玩家驱动却没有分设备配对，键盘会同时驱动它们（典型成因：复制实体/
+    /// 手搭场景多勾了 startPlayerControlled）。
+    /// 首帧跑保证所有实体已 Awake（顺序未定义，Bootstrap 里扫会漏）；只提示不裁决</summary>
+    private void WarnIfMultiplePlayerControlled(Entity host)
+    {
+        if (InputSource is not PlayerInputSource)
+        {
+            return;
+        }
+        foreach (Entity other in FindObjectsByType<Entity>())
+        {
+            if (other != host && other.Brain.InputSource is PlayerInputSource)
+            {
+                Debug.LogWarning($"{name} 与 {other.name} 都由玩家驱动：多人下这是常态" +
+                    "（各自设备配对/网络中继）；但单机调试会共享键盘一起动——若非有意分屏，" +
+                    "请检查是否多勾了 startPlayerControlled（控制权转移用 F10）");
+            }
+        }
+    }
 
     /// <summary>本帧实测速度（调试面板读）</summary>
     public Vector3 DebugVelocity { get; private set; }
@@ -120,7 +150,8 @@ public sealed class EntityBrain : MonoBehaviour
 
         PlayerSource = GetComponent<PlayerInputSource>();
         AiSource = GetComponent<AITreeInputSource>();
-        BindInputSource(entity.IsPlayerControlled);
+        // 开局绑定：startPlayerControlled 只在这里读一次（运行时控制状态一律看 InputSource）
+        BindInputSource(entity.StartPlayerControlled ? PlayerSource : AiSource);
 
         // 覆盖 Inspector 预配的初始装备：开局穿在身上的套装档位立即生效（变更驱动，不占每帧管线）
         ArmorSets.Sync();
@@ -128,30 +159,164 @@ public sealed class EntityBrain : MonoBehaviour
         LastFramePosition = transform.position;
     }
 
-    /// <summary>绑定输入源（IsPlayerControlled 的唯一职责，运行时切换 = 附身）：
-    /// 启用目标源、停用另一个（SendMessage 不看组件 enabled，源内部还有 bound 守门双保险）。
-    /// 对应源未挂（如纯敌人没挂 PlayerInputSource）时警告一次并保持无输入（站桩）</summary>
-    public void BindInputSource(bool playerControlled)
+    /// <summary>绑定输入源（控制权唯一写口）：传实例本身——通常传本实体的双源组件之一，
+    /// null = 回落绑 AITreeInputSource（"还给 AI"就是传 null）。
+    /// 将来新源（网络中继等）实现 IInputSource 后直接传进来，双源组件自动双双停用。
+    /// 调用后"是否玩家控制"以 InputSource is PlayerInputSource 为准；
+    /// 启用被绑定源、停用其余（SendMessage 不看组件 enabled，源内部还有 bound 守门双保险）。
+    /// 回落目标 AI 源未挂时警告一次并保持无输入（站桩）</summary>
+    public void BindInputSource(IInputSource? inputSource)
     {
-        IInputSource? target = playerControlled ? PlayerSource : AiSource;
+        var target = inputSource ?? AiSource;
         if (target == null)
         {
             if (!WarnedMissingSource)
             {
                 WarnedMissingSource = true;
-                Debug.LogWarning($"{name}：缺少{(playerControlled ? "PlayerInputSource" : "AITreeInputSource")}组件，实体无输入（站桩）。此警告只提示一次");
+                Debug.LogWarning($"{name}：null 绑定的回落目标 AITreeInputSource 组件缺失，实体无输入（站桩）。此警告只提示一次");
             }
+            return;
         }
-        // 两侧都通知：被绑定的激活、另一个停用（null 安全——缺挂的源本来就没人写指令）
+
+        // 先落字段再通知：控制状态唯一真相 = InputSource（读方如 CameraRig 据此判"谁在驱动"）
+        InputSource = target;
+
+        // 启用被绑定源、停用其余（按接口行动，不判断具体类型——将来网络中继等第三方源自动适配）。
+        // 注意：这里必须判断刚绑定的 target，不能判断字段旧值（首绑时字段为 null → 两个源都收不到通知，
+        // 结果是玩家源未激活 → 相机不亮、无输入 = "No Camera Rendering"）
+        if (ReferenceEquals(target, PlayerSource))
+        {
+            PlayerSource!.Activate();
+            AiSource?.Deactivate();
+            return;
+        }
+        if (ReferenceEquals(target, AiSource))
+        {
+            AiSource!.Activate();
+            PlayerSource?.Deactivate();
+            return;
+        }
+
+        // 第三方源（网络输入中继等）：双源组件都让位
+        PlayerSource?.Deactivate();
+        AiSource?.Deactivate();
+    }
+
+    // ---- 附身会话（buff 驱动，无专门管理器）----
+    //
+    // 需求钦定：附身会话**用 buff 表达**——挂上「被附身」buff = 会话开始，摘掉 = 会话结束。
+    // 于是：倒计时由 ModifierList 的 Duration 免费提供；判定条件也是 buff 在场
+    //（有 Possessed = 身体已被占用；有 SoulOut = 我已在附身中），不依赖任何场景级单例，
+    // 多人下各客户端用同一套规则就能初步裁决"能不能附身"。
+    // 本类只做两件事：发起时的闸门、以及每帧识别"载体的挂/摘"来换（换回）输入源。
+
+    /// <summary>会话进行中（载体 buff 在挂）。读方：HUD、二次发起闸门</summary>
+    public bool IsPossessing => ActivePossession != null;
+
+    /// <summary>本会话载体的剩余秒数（&lt;= 0 = 没有会话；永久载体返回 -1）</summary>
+    public float PossessionRemaining =>
+        ActivePossession != null ? Modifiers.GetRemaining(ActivePossession) : 0f;
+
+    /// <summary>灵魂出窍中（身上挂着 SoulOut 角色的附身效果 = 我的操作权正在别处）。HUD 与将来 UI 用</summary>
+    public bool HasSoulOut =>
+        Modifiers.GetHeld<IPossessionEffect>()?.PossessionRole == EnumPossessionRole.SoulOut;
+
+    /// <summary>
+    /// 发起附身（附身效果 buff 是会话载体；F10 调试链与将来的瞄准选目标都走这里）。
+    /// 闸门（全部读 buff，不看任何场景管理器）：
+    /// 「被附身」buff 已在挂 = 这具身体已被占用 → 拒绝；
+    /// 发起者已有「灵魂出窍」= 我已在附身中 → 拒绝；
+    /// 任一方死亡 → 拒绝；载体效果为空（资产没配）→ 拒绝。
+    /// 施加顺序：先给目标挂载体（会话从这一刻起算），再给出窍者挂标记。
+    /// </summary>
+    public bool TryBeginPossession(Entity target, PossessionEffect possessionEffect, PossessionEffect? soulOutEffect = null)
+    {
+        Entity? host = Entity;
+        if (host == null || target == null || host == target || possessionEffect == null)
+        {
+            return false;
+        }
+
+        bool targetOccupied = target.Brain.Modifiers.GetHeld<IPossessionEffect>() != null;
+        bool hostBusy = soulOutEffect != null && host.Brain.Modifiers.IsHolding(soulOutEffect);
+        if (targetOccupied || hostBusy || host.IsDead || target.IsDead)
+        {
+            return false;
+        }
+
+        target.Brain.Modifiers.Apply(possessionEffect);                                  // 会话载体：Duration 即时长
+        if (soulOutEffect != null)
+        {
+            host.Brain.Modifiers.Apply(soulOutEffect);                                   // 出窍者侧纯标记
+        }
+
+        // 立刻收敛一次：本帧就完成换绑（不等下一帧 Tick），发起方手感无延迟
+        // （注意：收敛的是对方的 Brain，所以用对方自己的实例方法 + 对方的 ModifierList）
+        target.Brain.ReconcilePossession(target.Brain.Modifiers);
+        ReconcilePossession(Modifiers);
+        return true;
+    }
+
+    /// <summary>
+    /// 显式中断入口（将来网络强制换人/死亡观战切人走它；玩家按键不调它——不能中途跑路）。
+    /// 实现就是摘掉自己身上的载体 buff：摘 = 结束，与"到期自动摘"同一条路
+    /// </summary>
+    public void EndPossession()
+    {
+        if (ActivePossession != null)
+        {
+            Modifiers.Remove(ActivePossession);
+        }
+    }
+
+    /// <summary>
+    /// 每帧收敛：载体 buff 的挂/摘 ⇄ 输入源绑定。
+    /// 挂上 → 本实体由玩家驱动（有玩家源就绑，没有则什么也不做——保持原绑定）；
+    /// 摘掉 → 本实体还回 AI 驱动（没有 AI 源则保持原绑定，只清会话标记）。
+    /// 之所以能这么短：换绑本来就是本类的邻居能力（BindInputSource），不需要新管理器。
+    /// 前提：传入的必须是**本 Brain 宿主**的 ModifierList（发起方用它去收敛对方的 Brain）
+    /// </summary>
+    private void ReconcilePossession(ModifierList modifiers)
+    {
+        PossessionEffect? possessed = modifiers.GetHeld<PossessionEffect>();
+        if (ReferenceEquals(possessed, ActivePossession))
+        {
+            return;   // 状态没变（含"都没有"的常态）：零分配零动作
+        }
+
+        ActivePossession = possessed;
+        if (possessed == null)
+        {
+            if (AiSource != null)
+            {
+                BindInputSource(AiSource);   // 会话结束：还回 AI
+            }
+            return;
+        }
+
         if (PlayerSource != null)
         {
-            PlayerSource.SetActive(playerControlled);
+            BindInputSource(PlayerSource);   // 会话开始：接管本地玩家输入
         }
-        if (AiSource != null)
+    }
+
+    /// <summary>
+    /// 场景里的附身候选：另一个非玩家驱动、存活、且身上没有「被附身」buff 的实体。
+    /// 多人纪律：绝不抢已被占用的身体（buff 判定）。FindObjectsByType 只在调试/选目标入口跑，不上玩法路径
+    /// </summary>
+    public static Entity? FindPossessionCandidate(Entity self)
+    {
+        foreach (Entity candidate in FindObjectsByType<Entity>())
         {
-            AiSource.SetActive(!playerControlled);
+            if (candidate == self || candidate.IsDead
+                || candidate.Brain.InputSource is PlayerInputSource                     // 别的玩家在操作
+                || candidate.Brain.Modifiers.GetHeld<IPossessionEffect>() != null)      // 已被附身占用
+            {
+                continue;
+            }
+            return candidate;
         }
-        InputSource = target;
+        return null;
     }
 
     // 帧内顺序（勿调整），语义对照见类头注释
@@ -170,6 +335,13 @@ public sealed class EntityBrain : MonoBehaviour
             return;
         }
 
+        // 0.5) 首帧自检（一次性）：多个玩家驱动实体 = 装配事故（见方法注释）
+        if (!CheckedPossessionUniqueness)
+        {
+            CheckedPossessionUniqueness = true;
+            WarnIfMultiplePlayerControlled(host);
+        }
+
         // 1) 帧首重置电平型指令：输入源沉默 = 站桩。
         //    边沿型指令不在此列——由消息回调/决策在帧间置位，帧首清会丢输入
         commands.ResetLevels();
@@ -180,6 +352,9 @@ public sealed class EntityBrain : MonoBehaviour
         // 3) 修饰列表（时长/周期跳伤/CC 投影）+ 技能冷却步进
         modifiers.Tick(deltaTime);
         host.Slots.Skills.TickCooldown(deltaTime);
+
+        // 3.5) 附身会话：buff 是唯一真相——摘掉「被附身」buff 即会话结束（Duration 到期自动摘）
+        ReconcilePossession(modifiers);
 
         // 4) 死亡门：周期跳伤致死当帧冻结余下管线（尸体站桩）。
         //    清边沿防"复活瞬间残留的跳/攻击请求"；每帧清幂等，成本可忽略
@@ -278,7 +453,7 @@ public sealed class EntityBrain : MonoBehaviour
     /// <summary>受到伤害（统一入口，命中/周期跳伤/环境都走这里，别处不得直改 Vitals）：
     /// 入口修正 = DamageTaken 乘法链 × 挥剑减伤（Swinging 标签的武器解释器），
     /// 终值交给 Vitals.ApplyDamage（唯一扣血写口，Data 层不反向依赖 Logic）。
-    /// 击退/受击硬直等由施加方另行 Apply Modifier，本入口只管数值</summary>
+    /// 附带受击降信心（FaithLossPerHit，见方法尾；击退/受击硬直等仍由施加方另行 Apply Modifier）</summary>
     public void TakeDamage(float rawAmount)
     {
         // 装配门 + 收窄成局部（伤害入口可能被场景里的其他实体在装配中途调用）
@@ -303,5 +478,14 @@ public sealed class EntityBrain : MonoBehaviour
             * modifiers.GetStatMultiplier(EnumStatType.DamageTaken)
             * swingMultiplier;
         host.Vitals.ApplyDamage(final);
+
+        // 受伤动摇信心（核心玩法钩子）：被命中不问来源——被自己附身的怪打、多人被队友误伤同规则，
+        // 信心往潮汐方向降（(int)Tide × 幅度 = -幅度，方向因子纪律与技能链同构）。
+        // 被动损失不走 CanCast 双闸门：SkillResource 内部钳制，贴边 -67 自然封底
+        int faithLoss = host.Config?.FaithLossPerHit ?? 0;
+        if (faithLoss > 0)
+        {
+            host.Vitals.Faith?.Update((int)EnumSkillType.Tide * faithLoss);
+        }
     }
 }

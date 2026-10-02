@@ -27,6 +27,43 @@ public static class CreateArmorSetDemoAssets
     public const string PlayerConfigPath = DemoConfigFolder + "/Config_DemoPlayer.asset";
     public const string EnemyConfigPath = DemoConfigFolder + "/Config_DemoEnemy.asset";
 
+    /// <summary>演示附身资产路径（附身效果存放处；与护甲演示同目录便于一处管理）</summary>
+    public const string PossessedEffectPath = DemoFolder + "/Possession_Possessed.asset";
+    public const string SoulOutEffectPath = DemoFolder + "/Possession_SoulOut.asset";
+
+    /// <summary>
+    /// 生成/复用两份附身资产（幂等）：附身**不需要场景级管理器**——会话状态就是 buff。
+    /// · Possession_Possessed：被附身者的**会话载体**，Duration 即附身时长，到期自动摘 = 自动换回；
+    /// · Possession_SoulOut：出窍者的**纯标记**（也是一张"我不在"的牌，多人判定用）。
+    /// 两份都不含数值/控制/周期成分：附身闸门只看 buff 在场，不看任何单例
+    /// </summary>
+    public static void EnsurePossessionEffects()
+    {
+        EnsureFolder(DemoFolder);
+
+        PossessionEffect possessed = LoadOrCreate<PossessionEffect>(PossessedEffectPath);
+        possessed.Name = "被附身";
+        possessed.Duration = 10f;                       // 会话时长（倒计时就是它）
+        possessed.PossessionRole = EnumPossessionRole.Possessed;
+        possessed.Category = EnumModifierCategory.Buff; // 纯会话标记，不挂 ArmorSet 来源位
+        possessed.StatModifiers = System.Array.Empty<StatModifierEntry>();
+        possessed.HasControl = false;
+        possessed.HasPeriodic = false;
+        possessed.GrantedTag = EnumEntityTag.None;
+        EditorUtility.SetDirty(possessed);
+
+        PossessionEffect soulOut = LoadOrCreate<PossessionEffect>(SoulOutEffectPath);
+        soulOut.Name = "灵魂出窍";
+        soulOut.Duration = 10f;                         // 与载体同长（两边一起到期）
+        soulOut.PossessionRole = EnumPossessionRole.SoulOut;
+        soulOut.Category = EnumModifierCategory.Buff;
+        soulOut.StatModifiers = System.Array.Empty<StatModifierEntry>();
+        soulOut.HasControl = false;
+        soulOut.HasPeriodic = false;
+        soulOut.GrantedTag = EnumEntityTag.None;
+        EditorUtility.SetDirty(soulOut);
+    }
+
 
     [MenuItem("Crown Tide/生成护甲套装演示资产")]
     public static void Generate()
@@ -77,6 +114,9 @@ public static class CreateArmorSetDemoAssets
         // 5) 演示角色配置（玩家 / 敌人数值；空 Config 会让 HUD 显示 float.MaxValue 血量）
         EnsureDemoConfigs();
 
+        // 6) 附身会话资产（buff 驱动：无管理器；场景装配器会把它们接到玩家调试槽）
+        EnsurePossessionEffects();
+
         EditorUtility.SetDirty(tier2);
         EditorUtility.SetDirty(tier4);
         EditorUtility.SetDirty(set);
@@ -87,6 +127,7 @@ public static class CreateArmorSetDemoAssets
             + "· ArmorSet_Demo（二件档：移速 ×1.15；四件档：移速 ×1.05、受伤 ×0.8）\n"
             + "· Armor_DemoHead / DemoChest / DemoLegs 三件护甲\n"
             + "· Config_DemoPlayer（100 血）/ Config_DemoEnemy（60 血）\n"
+            + "· Possession_Possessed（被附身·会话载体 10s）/ Possession_SoulOut（灵魂出窍·纯标记）\n"
             + "用法：把三件护甲拖到 Player 的 Slots.Armor（头/胸/腿），Play 后看 HUD 的「护甲 …/4｜套装 …」；"
             + "再手动 Create 一件 Part=Feet 的 ArmorSO 并指向同一套装，拖进足部槽即可看到四件档叠加生效（移速 ≈ ×1.21）\n"
             + "场景装配：菜单 Crown Tide/装配 SampleScene 演示实体（玩家 + AI）");

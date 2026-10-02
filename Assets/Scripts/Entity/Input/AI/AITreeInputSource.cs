@@ -39,9 +39,14 @@ public sealed class AITreeInputSource : MonoBehaviour, IInputSource
     private bool Bound;                                 // Brain 绑定标志
 
     /// <summary>Brain 绑定/解绑（BindInputSource 调用）。解绑 = GatherCommands 早退（沉默站桩）</summary>
-    public void SetActive(bool active)
+    public void Activate()
     {
-        Bound = active;
+        Bound = true;
+    }
+
+    public void Deactivate()
+    {
+        Bound = false;
     }
 
     /// <summary>每帧采集：决策定时 → 意图翻译成指令（追击 = 朝目标方向，与玩家推杆同构）</summary>
@@ -59,6 +64,14 @@ public sealed class AITreeInputSource : MonoBehaviour, IInputSource
                 return;
             }
             BuildDecisionTree();
+        }
+
+        // 防身：被附身驱动的实体（身上挂着附身载体 buff）不该再被 AI 写入指令。
+        // 正常路径下会话期间本源的 Bound 已为 false（换绑时被 Deactivate），这里是双保险——
+        // 万一绑定状态被外部绕过，也不会出现"AI 与玩家同时开这具身体"
+        if (Entity.Brain.Modifiers.GetHeld<IPossessionEffect>() != null)
+        {
+            return;
         }
 
         TryRunDecision(Time.deltaTime);

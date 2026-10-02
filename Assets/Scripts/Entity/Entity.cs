@@ -2,8 +2,10 @@ using UnityEngine;
 
 /// <summary>
 /// 实体（组合根，七层架构的唯一角色类——需求钦定：所有角色统一叫 Entity，不再有
-/// Player/NPC/Character 子类。玩家与敌人的差异 = IsPlayerControlled（只决定输入源绑定）
+/// Player/NPC/Character 子类。玩家与敌人的差异 = 开局输入源绑定（startPlayerControlled）
 /// + 槽位内容 + 决策树 + Config，不来自继承）。
+/// 「当前是否玩家控制」不存布尔——唯一真相是 Brain.InputSource（is PlayerInputSource
+/// 即玩家驱动；附身切换 = 换绑输入源，查询方一律问 InputSource）。
 /// 本类只做三件事：
 /// 1. RequireComponent 声明组件组合（组合优于继承）；
 /// 2. 唯一 Awake：缓存组件 → Brain.Bootstrap（单 Awake 规则——同物体多组件 Awake 顺序
@@ -27,9 +29,14 @@ public sealed class Entity : MonoBehaviour
     [Tooltip("实体标识（多人预留：将来映射 NetworkObject/网络 id；本地无用）")]
     public int EntityId;
 
-    [Tooltip("是否玩家操控（需求钦定唯一职责：决定 Brain 绑定 PlayerInputSource 还是 AITreeInputSource；"
-        + "只管谁来下指令，不管指令能不能执行——那是 Capability 的事）")]
-    [SerializeField] private bool isPlayerControlled;
+    [Tooltip("开局绑定玩家输入源（Bootstrap 据此选 PlayerInputSource / AITreeInputSource；"
+        + "只管谁来下指令，不管指令能不能执行——那是 Capability 的事）。"
+        + "运行时「是否玩家控制」的唯一真相是 Brain.InputSource（is PlayerInputSource），"
+        + "控制权转移 = Brain.BindInputSource（F10 附身演示）")]
+    [SerializeField] private bool startPlayerControlled;
+
+    /// <summary>开局绑定选择（Brain.Bootstrap 读一次；运行时控制状态看 Brain.InputSource）</summary>
+    public bool StartPlayerControlled => startPlayerControlled;
 
     // ---- 组件缓存（唯一 Awake 取一次；不在玩法路径反复 GetComponent）----
     // 这批由 Awake（单入口，先于任何玩法调用）注入，故按非空不变量声明；
@@ -41,21 +48,6 @@ public sealed class Entity : MonoBehaviour
 
     /// <summary>命名标签集合（状态直写 + Modifier 投影，见 CharacterTagSet）</summary>
     public CharacterTagSet Tags { get; } = new CharacterTagSet();
-
-    /// <summary>是否玩家操控。运行时 set = 附身/换脑（Brain 重绑输入源），
-    /// Inspector 勾选则在下一次 Bootstrap 生效</summary>
-    public bool IsPlayerControlled
-    {
-        get => isPlayerControlled;
-        set
-        {
-            isPlayerControlled = value;
-            if (Brain != null)
-            {
-                Brain.BindInputSource(value);
-            }
-        }
-    }
 
     /// <summary>指令缓冲直通（状态读指令的短路径）</summary>
     public CommandBuffer Commands => Brain.Commands;

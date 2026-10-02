@@ -58,16 +58,28 @@ public sealed class EntityVisual : MonoBehaviour
         string weaponLine = DescribeWeapon();
         string armorLine = DescribeArmor();
         string inputLine = brain.InputSource != null ? brain.InputSource.GetType().Name : "无（站桩）";
+        // 附身状态（buff 驱动：载体的剩余时长就是会话剩余时间，无需任何会话管理器）。
+        // 两种角色可能同时存在（附身中的人又被附身），故两行独立判断而非二选一
+        string possessionLine = "";
+        if (brain.IsPossessing)
+        {
+            possessionLine += $"\n附身中｜剩余 {brain.PossessionRemaining:0.0}s（到期自动换回）";
+        }
+        if (brain.HasSoulOut)
+        {
+            possessionLine += "\n灵魂出窍中（操作权在别处）";
+        }
 
         GUI.Label(new Rect(10f, 10f, 340f, 285f),
-            $"{name}（{(Entity.IsPlayerControlled ? "玩家" : "AI")}｜{inputLine}）" +
+            $"{name}（{(Entity.Brain.InputSource is PlayerInputSource ? "玩家" : "AI")}｜{inputLine}）" +
             $"\n水平速度 {horizontalSpeed:F2} m/s｜竖直速度 {velocity.y:F2} m/s" +
             $"\n状态机 {machineState}{attackLine}" +
             $"\n生命 {Entity.Vitals.CurrentHp:0}/{Entity.Vitals.MaxHp:0}｜信心 {Entity.Vitals.Faith?.Current ?? 0}/±{Entity.Vitals.FaithCapacity}（钟摆）" +
             $"\n效果 {brain.Modifiers.Describe()}" +
             $"\n标签 {Entity.Tags.Describe()}" +
             $"\n{weaponLine}" +
-            $"\n{armorLine}",
+            $"\n{armorLine}" +
+            possessionLine,
             HudStyle);
     }
 

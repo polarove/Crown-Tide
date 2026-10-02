@@ -8,8 +8,11 @@ using UnityEngine.InputSystem;
 /// - 抬头 90°（俯仰上限可配，默认正对天空）+ 往上看时地面保护收缩（视角跟手不停转）；
 /// - 低头相机靠近（新增）：俯仰向下超过阈值，相机沿视线渐缩贴向角色（看脚下不穿模不远景）；
 /// - 奔跑加速（新增）：Entity.IsSprinting（Logic 只读）→ FOV 平滑拉大，速度感呈现。
-/// 结构：挂在相机物体上、持 Entity 引用（不全局找——多人纪律：每玩家自己的相机，
-/// spawn 系统指派）；LateUpdate 独立节拍（表现层不参与仿真顺序）。
+/// 结构：挂在相机物体上、持 Entity 引用——相机属于实体（玩家/敌人各有一台，不全局找——
+/// 多人纪律：每玩家自己的相机，spawn 系统指派）；LateUpdate 独立节拍（表现层不参与仿真顺序）。
+/// 附身切换不动相机：只读感知 Brain.InputSource is PlayerInputSource（控制状态唯一真相），
+/// 自己的实体被玩家驱动才亮（Camera/AudioListener 同开同关）——控制权转移后旧相机自动熄灭、
+/// 接管者的相机自动亮起，切换的是"谁的相机在看"。
 /// 视角基准注入：把自身 Transform 填给宿主 Entity 的 PlayerInputSource.viewTransform
 /// （移动方向的投影基准；只填空缺，不覆盖手连）。
 /// 相机输入自持（本玩家的显示设备输入，本地直读合理）。
@@ -18,7 +21,7 @@ using UnityEngine.InputSystem;
 public sealed class CameraRig : MonoBehaviour
 {
     [Header("目标")]
-    [Tooltip("要跟随的实体（通常是玩家 Entity）；空 = 本组件不工作")]
+    [Tooltip("要跟随的实体（本相机的归属者）；空 = 本组件不工作")]
     public Entity? FollowEntity;
 
     [Header("第三人称")]
@@ -93,6 +96,8 @@ public sealed class CameraRig : MonoBehaviour
     private bool IsFirstPersonMode;
     private float FirstPersonBlendFactor;           // 0 = 第三人称，1 = 第一人称
     private Renderer[] EntityMeshRenderers = null!;   // 第一人称显隐（首次切换时 ??= 取，表现层自持对象，只读数据不改）
+    private Camera CameraComponent = null!;         // Awake 缓存（RequireComponent 保证存在；亮灭开关）
+    private AudioListener? ListenerComponent;       // Awake 缓存（可空：相机物体不一定挂；与 Camera 同开同关）
 
     private void Awake()
     {
@@ -110,8 +115,9 @@ public sealed class CameraRig : MonoBehaviour
         SwitchShoulderAction = InputActionAsset.FindAction("SwitchShoulder", throwIfNotFound: true);
         ToggleViewModeAction = InputActionAsset.FindAction("ToggleView", throwIfNotFound: true);
         SwitchShoulderAction.performed += OnSwitchShoulder;
-        Camera? cameraComponent = GetComponent<Camera>();
-        BaseFieldOfView = cameraComponent != null ? cameraComponent.fieldOfView : 60f;
+        CameraComponent = GetComponent<Camera>();   // RequireComponent 保证非空
+        BaseFieldOfView = CameraComponent.fieldOfView;
+        ListenerComponent = GetComponent<AudioListener>();
     }
 
     private void OnDestroy()
@@ -168,13 +174,42 @@ public sealed class CameraRig : MonoBehaviour
         }
     }
 
+    /// <summary>相机激活同步（附身感知的执行端）：Camera/AudioListener 同开同关——
+    /// 同一时刻只有玩家驱动实体的相机在渲染（多台同亮会叠画面 + 双 AudioListener 警告）。
+    /// 本组件自身永不禁用：熄灭的相机还要每帧感知"控制权回来了没"</summary>
+    private void SyncCameraActive(bool active)
+    {
+        if (CameraComponent.enabled != active)
+        {
+            CameraComponent.enabled = active;
+        }
+        if (ListenerComponent != null && ListenerComponent.enabled != active)
+        {
+            ListenerComponent.enabled = active;
+        }
+    }
+
+    /// <summary>还原第一人称隐藏的实体网格（相机熄灭时调用：别的相机看过来不该是隐形人；
+    /// 本相机再亮时按视角模式重新隐藏）——表现层自持状态，不动实体数据</summary>
+    private void RestoreEntityMeshRenderers()
+    {
+        if (EntityMeshRenderers == null)
+        {
+            return;
+        }
+        for (int i = 0; i < EntityMeshRenderers.Length; i++)
+        {
+            EntityMeshRenderers[i].enabled = true;
+        }
+        EntityMeshRenderers = null!;
+    }
+
     private void LateUpdate()
     {
         if (FollowEntity == null)
         {
             return;
         }
-        Transform followTarget = FollowEntity.transform;
 
         // 视角基准注入（一次性；只填空缺不覆盖手连——多人下 spawn 系统指派各自的相机）
         PlayerInputSource inputSource = FollowEntity.GetComponent<PlayerInputSource>();
@@ -182,6 +217,20 @@ public sealed class CameraRig : MonoBehaviour
         {
             inputSource.SetViewTransform(transform);
         }
+
+        // 相机激活感知（只读纪律，零事件耦合）：相机属于实体——仅当自己的实体正被玩家驱动
+        // （Brain.InputSource is PlayerInputSource，控制状态唯一真相）时才亮。
+        // F10 控制权转移后旧相机自动熄灭、接管者的相机自动亮起——切换的是"谁的相机在看"，
+        // 相机本身不动、不换跟随目标。多人接缝：分屏下多个玩家相机并亮即是分屏，
+        // 将来按"驱动本实体的是本玩家吗"细化（各自设备配对/网络中继）
+        bool playerDriven = FollowEntity.Brain.InputSource is PlayerInputSource;
+        SyncCameraActive(playerDriven);
+        if (!playerDriven)
+        {
+            RestoreEntityMeshRenderers();
+            return;   // 熄灭的相机：不锁鼠标、不读视角输入（再亮时视角不跳）、不更新跟随
+        }
+        Transform followTarget = FollowEntity.transform;
 
         // 编辑器里按 Esc 会解锁指针；窗口重新获得焦点时恢复锁定
         if (LockAndHideCursor && Cursor.lockState != CursorLockMode.Locked && Application.isFocused)

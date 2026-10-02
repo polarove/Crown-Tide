@@ -220,6 +220,37 @@ public sealed class ModifierList
         return false;
     }
 
+    /// <summary>
+    /// 按语义取活跃条目里的第一份实现 T 的效果（如 IPossessionEffect）。
+    /// 只声明"我有这类效果"，具体语义由 T 定义——容器不膨胀成一堆专用开关。
+    /// 典型用法：判"在附身中吗" = GetHeld&lt;IPossessionEffect&gt;() != null
+    /// </summary>
+    public T? GetHeld<T>() where T : class
+    {
+        for (int i = 0; i < Modifiers.Count; i++)
+        {
+            if (Modifiers[i].Effect is T held)
+            {
+                return held;
+            }
+        }
+        return null;
+    }
+
+    /// <summary>指定效果剩余秒数（-1 = 不在挂 / 永久效果；HUD 与"还剩多久换回"的读点）。
+    /// 永久效果（Duration &lt;= 0）不倒计时，返回值恒为 -1</summary>
+    public float GetRemaining(ModifierEffect modifier)
+    {
+        for (int i = 0; i < Modifiers.Count; i++)
+        {
+            if (ReferenceEquals(Modifiers[i].Effect, modifier))
+            {
+                return modifier.Duration > 0f ? Modifiers[i].RemainingTime : -1f;
+            }
+        }
+        return -1f;
+    }
+
     /// <summary>调试输出（仅 OnGUI 面板；拼串有分配，不上玩法路径）</summary>
     public string Describe()
     {

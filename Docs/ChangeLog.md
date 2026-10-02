@@ -301,3 +301,45 @@ dotnet 侧看不到这批（Unity 编译器此前无 nullable 上下文）；它
 | Unity 编译（Editor） | **0 条 CS 诊断**（`Logs/unity-nullable6.log`，含 nullable 分析） |
 | `dotnet build -t:Rebuild`（五个程序集） | 全部 0 警告 0 错误 |
 | EditMode / PlayMode | 10/10、13/13 通过 |
+
+---
+
+## 4. 附身玩法化（控制状态唯一真相 + 相机各属实体 + 附身会话 + 受伤降信心）
+
+> 2026-10-02 第二轮接手（附身核心玩法落地）。
+
+### 语义变更（需求钦定）
+
+1. **「是否玩家控制」不再存布尔**：唯一真相 = `EntityBrain.InputSource`（`is PlayerInputSource` 即玩家驱动）。
+   原 `Entity.isPlayerControlled` 改名 `startPlayerControlled`——只决定 Bootstrap 开局绑定，运行时控制权转移一律 `Brain.BindInputSource`。
+2. **相机各属实体**：玩家/敌人各一台 CameraRig，附身切换靠各自亮灭互换（只读感知 `InputSource` 归属），不挪相机、不换跟随目标。
+3. **F10 = 发起附身会话**（原为即切即回调试开关）：倒计时归零自动换回；会话中不能中途退出，但 `End()` 是公开中断入口（死亡/将来网络强制走它）。
+4. **受伤降信心**：`TakeDamage` 尾部 `Faith.Update((int)Tide × Config.FaithLossPerHit)`——伤害不问来源，贴边 -67 封底（被动损失不走 CanCast 双闸门）。
+
+### 新增文件
+
+| 文件 | 职责 |
+|---|---|
+| `Logic/PossessionDirector.cs` | 附身会话管理器（场景级单机装置）：`Begin/End/IsActive`、独立 Update 步进倒计时、被附身者死亡强制中断、倒计时 HUD |
+| `TestAssemblies/PlayMode/PossessionRuntimeTests.cs` | 5 个用例：归属互换自动换回 / 二次发起拒绝 / 不抢玩家驱动实体 / 死亡中断 / 受击降信心贴边封底 |
+
+### 修改文件
+
+| 文件 | 改动 |
+|---|---|
+| `Entity.cs` | 删 `IsPlayerControlled` 属性；序列化字段改名 `startPlayerControlled` + `StartPlayerControlled` 开局读点 |
+| `EntityBrain.cs` | 自检/注释改口径；`TakeDamage` 加受击降信心钩子 |
+| `Input/PlayerInputSource.cs` | F10 改为向 PossessionDirector 发起会话（懒查找 + 一次性缺件警告）；auto-target 逻辑迁入 Director.Begin |
+| `Presentation/CameraRig.cs` | 删 `AutoFollowPossession` 扫描重指；新增激活感知 `SyncCameraActive`（Camera/AudioListener 同开同关）+ 熄灭时还原第一人称隐藏网格 |
+| `Presentation/EntityVisual.cs` | HUD 玩家/AI 标签改从 `InputSource` 推导 |
+| `Data/Character/CharacterConfigSO.cs` | 加 `FaithLossPerHit = 5` |
+| `Editor/CreateSceneDemo.cs` | 建 Enemy Camera 与 Possession Director；校验/日志同步；字段名同步 |
+| `Docs/EntityArchitecture.md` | §二/§十/§十二/§十四/§十六（附身会话） |
+
+### 验证
+
+| 项目 | 结果 |
+|---|---|
+| Roslyn 离线编译（Runtime + Editor，Unity netstandard 2.1 facade，nullable:enable） | 0 错误 0 警告 |
+| PlayMode 新用例 | 5 个（待 Unity 内跑：本会话仅离线编译验证） |
+

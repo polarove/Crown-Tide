@@ -35,11 +35,13 @@ Network Layer（横切，本轮只留接缝不实现——见 §十一）
 | Physics | `Physics/EntityMotor.cs` | 运动原语与参数 |
 | Presentation | `Presentation/EntityVisual.cs`（HUD）、`CameraRig.cs`（相机） | 只读呈现 |
 
-## 二、核心命名约定：Entity 统一 + IsPlayerControlled
+## 二、核心命名约定：Entity 统一 + 控制状态唯一真相
 
 所有角色统一叫 **Entity**，不再有 Player/NPC/Character 三层子类（组件层面零继承）。
-`bool IsPlayerControlled` 的**唯一职责**是决定 `EntityBrain` 绑定哪个输入源：
-`true → PlayerInputSource`，`false → AITreeInputSource`（双源同挂物体，切换只换绑定）。
+**「当前是否玩家控制」不存布尔字段——唯一真相是 `EntityBrain.InputSource`**：
+`InputSource is PlayerInputSource` 即玩家驱动（双源同挂物体，换绑即控制权转移）。
+`Entity.startPlayerControlled`（序列化）只决定 **Bootstrap 开局**绑哪个源：
+`true → PlayerInputSource`，`false → AITreeInputSource`。
 它只管"谁来下指令"，不管"指令能不能执行"：
 
 | 问题 | 裁决者 |
@@ -49,8 +51,9 @@ Network Layer（横切，本轮只留接缝不实现——见 §十一）
 | 槽位/装备/技能 | `SlotContainer` + `SkillSlot`（Data） |
 | 外观/动画/相机 | `EntityVisual` / `CameraRig`（Presentation） |
 
-玩家操控 AI（附身）= 把目标 Entity 的 `IsPlayerControlled` 置 true（运行时 setter →
-`Brain.BindInputSource` 重绑，F10 调试键演示），原角色置 false 换回 AI 源。
+玩家操控 AI（附身）= 控制权租约（F10 发起、`PossessionDirector` 管理，见 §十六）：接管者绑到
+PlayerInputSource、原实体绑回 AITreeInputSource（感知目标未配时自动指向接管者）；
+一切查询方一律 `InputSource is PlayerInputSource`。
 强度差异来自**槽位内容 + 决策树 + config**，不来自类继承。
 
 ## 三、组件组合与初始化规则
@@ -201,8 +204,10 @@ MoveHorizontal（零方向也 Move：贴地/去穿插）、ApplyGravityAndVertic
   动画接入点 = 状态 Enter/Exit + locomotionStyle 选型键 + 事件订阅。
 - `CameraRig`（角色系统呈现三行为）：抬头 90°（俯仰上限 + 往上地面保护收缩）、
   **低头相机靠近**（低头超阈值沿视线渐缩）、**奔跑加速**（读 `Entity.IsSprinting` FOV 平滑拉大）。
-  持 Entity 引用（多人：每玩家自己的相机，spawn 指派）；把自身 Transform 注入
-  PlayerInputSource.viewTransform（移动方向的投影基准——全项目无 Camera.main/Find*）。
+  **相机属于实体**（玩家/敌人各一台，持各自 Entity 引用——多人：每玩家自己的相机，spawn 指派）；
+  附身切换不动相机：只读感知 `Brain.InputSource is PlayerInputSource`——自己的实体被玩家驱动
+  才亮（Camera/AudioListener 同开同关），控制权转移后旧相机自熄、接管者的相机自亮。
+  把自身 Transform 注入 PlayerInputSource.viewTransform（移动方向的投影基准——全项目无 Camera.main/Find*）。
 
 ## 十一、多人就绪清单（本轮只留接缝，兑现点）
 
@@ -229,7 +234,7 @@ MoveHorizontal（零方向也 Move：贴地/去穿插）、ApplyGravityAndVertic
 | F6 | 全驱散 |
 | F7 | 场景内其他实体施加眩晕（敌人侧回归） |
 | F9 | 请求冠冕技能（双闸门 + 信心钟摆涨向冒烟；贴边 +67 后锁向拒绝） |
-| F10 | 附身切换（IsPlayerControlled 翻转，双输入源重绑演示） |
+| F10 | 发起附身会话（PossessionDirector 控制权租约，见 §十六；原角色回 AI、目标接管玩家输入，倒计时归零自动换回；会话中不能中途退出） |
 | F11 | 请求潮汐技能（信心钟摆降向；贴边 -67 后锁向拒绝，两键互为回摆） |
 
 ---
@@ -273,10 +278,12 @@ MoveHorizontal（零方向也 Move：贴地/去穿插）、ApplyGravityAndVertic
 
 场景内容（装配器：`Assets/Editor/CreateSceneDemo.cs`）：
 
-- **Player**：`IsPlayerControlled = true`（Brain 绑 `PlayerInputSource`），穿演示头盔+胸甲 → 二件档移速 ×1.15 开局即生效；DEBUG HUD 开。
-- **Enemy**：`IsPlayerControlled = false`（Brain 绑 `AITreeInputSource`），`Target` 指向玩家 → 追着玩家跑；
+- **Player**：`startPlayerControlled = true`（Bootstrap 绑 `PlayerInputSource`），穿演示头盔+胸甲 → 二件档移速 ×1.15 开局即生效；DEBUG HUD 开。
+- **Enemy**：`startPlayerControlled = false`（Bootstrap 绑 `AITreeInputSource`），`Target` 指向玩家 → 追着玩家跑；
   只戴头盔（1 件不激活档位）；DEBUG HUD 关（少挡画面）。
-- **Main Camera**：挂 `CameraRig` 跟随玩家（F1 切肩 / F2 切第一人称），输入走 `Assets/Input/PlayerControls.inputactions`。
+- **Main Camera / Enemy Camera**：各挂 `CameraRig` 跟随各自实体（F1 切肩 / F2 切第一人称），输入走
+  `Assets/Input/PlayerControls.inputactions`。附身切换（F10）靠各自亮灭互换，**不挪相机、不换跟随目标**。
+- **Possession Director**：场景级附身会话管理器（F10 发起，10s 倒计时自动换回，顶部 HUD 显示剩余；期间不能中途退出）。
 - 操作：WASD 移动、Shift 加速、空格跳；F3~F11 调试键见 `PlayerInputSource` 头注释（F10 可附身切换：玩家↔AI）。
 
 **编辑器装配的两个坑（已在装配器里注释）**：
@@ -380,6 +387,32 @@ EditMode 10/10、PlayMode 13/13 通过——注解是纯元数据，运行行为
 `AITreeInputSource.Target`、`CharacterSlotContainer.UnarmedComboGraph`、`ArmorSetSO.Bonuses`、
 `CameraRig.FollowEntity`、`PlayerInputSource` 三个调试槽。它们的读点本来就有空判断或"空 = 未配置"语义，
 已全部改为 `?`（`CharacterVitals.Initialize` 参数与 `ApplyDebugModifier` 参数同步放宽为可空）。
+
+---
+
+## 十六、附身会话（核心玩法 · 控制权租约）
+
+附身是核心玩法（需求钦定）：玩家附身敌怪 → 用敌怪打自己的原角色 → 命中降低原角色信心
+（潮汐方向）→ 信心贴边后释放潮汐大技能；平时放冠冕小技能。
+
+```
+玩家角色（PlayerInput→AIInput）→ 敌怪（AIInput→PlayerInput）→ 倒计时
+→ 敌怪（PlayerInput→AIInput）→ 玩家角色（AIInput→PlayerInput）
+```
+
+| 环节 | 归属 |
+|---|---|
+| 会话管理 | `PossessionDirector`（Logic，场景级单机装置，独立 Update 节拍——先例 CameraRig）：`Begin` / `End` / `IsActive` |
+| 控制权换绑 | 仍是 `Brain.BindInputSource`（唯一入口）；相机各属实体、亮灭跟着绑定走——Director 不碰相机 |
+| 倒计时 | `PossessionDuration`（活值，默认 10s，顶部 HUD 显示剩余）；归零自动 `End()` |
+| 中断入口 | `End()` 公开：倒计时归零与被附身者死亡（现役触发者）；将来网络强制/死亡观战切人走同一入口——玩家按键不调它 |
+| 会话纪律 | **不能中途跑路**（需求钦定）：附身中 F10 无效只提示；中断入口不暴露给玩家按键 |
+| 回 AI 的原角色 | 感知目标未配时自动指向附身目标（"用敌怪打自己"的对手就是它）；已手连不覆盖 |
+| 受伤降信心 | `Brain.TakeDamage` 尾部：`Faith.Update((int)Tide × Config.FaithLossPerHit)`——伤害不问来源（被自己附身的怪打、多人被队友误伤同规则，受伤动摇信心），贴边 -67 封底；被动损失不走 CanCast 双闸门（SkillResource 内部钳制兜底） |
+
+**后置接缝**（代码注释已登记）：瞄准选目标（准星射线替换 F10 的 `FindSuccessorEntity` 遍历）；
+死亡观战队友（视点/控制分离——观战者不绑任何输入源，只借相机）；潮汐大爆效果载荷与释放后 buff。
+多人化时 Director 升级 per-player（玩家一等对象：设备配对 + 视点 + 存活状态）。
 
 ---
 
