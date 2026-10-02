@@ -31,7 +31,7 @@ public sealed class ArmorSlot
         _ => null,
     };
 
-    private void Set(EnumArmorPart part, ArmorSO value)
+    private void Set(EnumArmorPart part, ArmorSO? value)
     {
         switch (part)
         {
@@ -39,6 +39,7 @@ public sealed class ArmorSlot
             case EnumArmorPart.Chest: Chest = value; break;
             case EnumArmorPart.Legs: Legs = value; break;
             case EnumArmorPart.Feet: Feet = value; break;
+            default: throw new ArgumentOutOfRangeException(nameof(part), part, null);
         }
     }
 

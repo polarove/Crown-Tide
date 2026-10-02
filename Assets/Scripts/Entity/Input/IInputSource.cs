@@ -7,5 +7,5 @@
 /// </summary>
 public interface IInputSource
 {
-    void GatherCommands(CommandBuffer commands);
+    void GatherCommands(CommandBuffer? commands);
 }

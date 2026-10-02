@@ -24,45 +24,45 @@ using UnityEngine;
 public sealed class EntityBrain : MonoBehaviour
 {
     /// <summary>宿主实体（Bootstrap 注入）</summary>
-    public Entity Entity { get; private set; }
+    public Entity? Entity { get; private set; }
 
     /// <summary>当前绑定的输入源（null = 无输入，站桩；绑定/切换见 BindInputSource）</summary>
-    public IInputSource InputSource { get; private set; }
+    public IInputSource? InputSource { get; private set; }
 
     /// <summary>指令缓冲（输入源写、管线消费）</summary>
-    public CommandBuffer Commands { get; private set; }
+    public CommandBuffer? Commands { get; private set; }
 
     /// <summary>分层状态机（Bootstrap 构造）</summary>
-    public EntityStateMachine StateMachine { get; private set; }
+    public EntityStateMachine? StateMachine { get; private set; }
 
     /// <summary>修饰列表（Bootstrap 构造）</summary>
-    public ModifierList Modifiers { get; private set; }
+    public ModifierList? Modifiers { get; private set; }
 
     /// <summary>能力仲裁（"能不能"统一查询口）</summary>
-    public EntityCapabilities Capability { get; private set; }
+    public EntityCapabilities? Capability { get; private set; }
 
     // 状态实例（Bootstrap 构造一次，转换时互相引用；零 GC）
-    public EntityIdleState IdleState { get; private set; }
-    public EntityWalkState WalkState { get; private set; }
-    public EntitySprintState SprintState { get; private set; }
-    public EntityGroundedState GroundedState { get; private set; }
-    public EntityAirState AirState { get; private set; }
-    public EntityAttackState AttackState { get; private set; }
-    public EntityStunState StunState { get; private set; }
+    public EntityIdleState? IdleState { get; private set; }
+    public EntityWalkState? WalkState { get; private set; }
+    public EntitySprintState? SprintState { get; private set; }
+    public EntityGroundedState? GroundedState { get; private set; }
+    public EntityAirState? AirState { get; private set; }
+    public EntityAttackState? AttackState { get; private set; }
+    public EntityStunState? StunState { get; private set; }
 
     /// <summary>失控呈现注册表：Modifier SO 的 controlKind → CC 层状态。
     /// 新失控（冰冻/石化）= 枚举成员 + 新状态类 + 这里注册一行，全"加"零"改"</summary>
     private readonly Dictionary<EnumControlKind, EntityState> controlStates = new();
 
     /// <summary>失控条目 → CC 层呈现状态：查注册表，未注册回落 Stun（数据配错不断链）</summary>
-    public EntityState ResolveControlState(EnumControlKind kind)
+    public EntityState? ResolveControlState(EnumControlKind kind)
     {
         return controlStates.TryGetValue(kind, out EntityState state) ? state : StunState;
     }
 
     // 两输入源组件（双源同挂是附身演示的前提；缺失对应源时该侧绑定失败并警告）
-    private PlayerInputSource PlayerSource;
-    private AITreeInputSource AiSource;
+    private PlayerInputSource? PlayerSource;
+    private AITreeInputSource? AiSource;
     private bool WarnedMissingSource;
 
     // 调试采样：本帧实测速度（位置差反推，比状态选的速度更可信，能反映碰撞和重力）
@@ -115,7 +115,7 @@ public sealed class EntityBrain : MonoBehaviour
     /// 对应源未挂（如纯敌人没挂 PlayerInputSource）时警告一次并保持无输入（站桩）</summary>
     public void BindInputSource(bool playerControlled)
     {
-        IInputSource target = playerControlled ? PlayerSource : AiSource;
+        IInputSource? target = playerControlled ? PlayerSource : AiSource;
         if (target == null)
         {
             if (!WarnedMissingSource)
@@ -143,31 +143,37 @@ public sealed class EntityBrain : MonoBehaviour
 
         // 1) 帧首重置电平型指令：输入源沉默 = 站桩。
         //    边沿型指令不在此列——由消息回调/决策在帧间置位，帧首清会丢输入
-        Commands.ResetLevels();
+        Commands?.ResetLevels();
 
         // 2) 输入源采集（玩家/AI 汇流；无输入源 = 全零站桩）
         InputSource?.GatherCommands(Commands);
 
         // 3) 修饰列表（时长/周期跳伤/CC 投影）+ 技能冷却步进
-        Modifiers.Tick(deltaTime);
-        Entity.Slots.Skills.TickCooldown(deltaTime);
+        Modifiers?.Tick(deltaTime);
+        if (Entity != null)
+        {
+            Entity.Slots.Skills.TickCooldown(deltaTime);
+        }
 
         // 4) 死亡门：周期跳伤致死当帧冻结余下管线（尸体站桩）。
         //    清边沿防"复活瞬间残留的跳/攻击请求"；每帧清幂等，成本可忽略
-        if (Entity.Vitals.IsDead)
+        if (Entity != null && Entity.Vitals.IsDead == true)
         {
-            Commands.ClearEdges();
+            Commands?.ClearEdges();
             return;
         }
 
         // 5) 地面检测（贴地钳 -2 语义在 Motor）
-        Entity.Motor.GroundCheck();
+        if (Entity != null)
+        {
+            Entity.Motor.GroundCheck();
+        }
 
         // 6) 主动作消费：起手当帧进前摇（放状态机之前，语义保真）
         TryConsumeAction();
 
         // 7) 状态机两遍 Tick（全层转换 → 全层动作；CC 压制惰性求值；连段推进在 AttackState）
-        StateMachine.TwoPassTick(deltaTime);
+        StateMachine!.TwoPassTick(deltaTime);
 
         // 8) 跳跃消费（冲量类过 CC 门禁，防绕过层压制）
         TryConsumeJump();
