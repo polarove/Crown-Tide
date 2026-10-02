@@ -1,4 +1,6 @@
 using Assets.Scripts.Entity.Data.Weapon;
+using Assets.Scripts.Entity.Data.Armor;
+using System;
 using UnityEngine;
 
 /// <summary>
@@ -36,4 +38,11 @@ public class WeaponSO : ScriptableObject
 
     [Tooltip("双持出招表（以本武器为主手时生效）；空 = 回退用单持表（可双持但动画不分单双的轻武器适用）")]
     public WeaponComboGraph? ComboGraphDual;
+
+    [Header("护甲套装联动")]
+    [Tooltip("指定护甲套装；武器暂不计入护甲件数（计数规则待确认）")]
+    public ArmorSetSO? Set;
+
+    [Tooltip("护甲套装对应档位已生效时额外施加本武器的效果；一般配置 2／4 件档")]
+    public ArmorSetBonus[] SetBonuses = Array.Empty<ArmorSetBonus>();
 }

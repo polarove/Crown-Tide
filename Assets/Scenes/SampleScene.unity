@@ -238,7 +238,7 @@ Transform:
   m_GameObject: {fileID: 249588915}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 1.5, z: 0}
+  m_LocalPosition: {x: 0, y: 1.55, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -286,7 +286,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a5da7b64ee185134e9d7451e9fb3ad5f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Entity.Runtime::EntityVisual
-  ShowDebugHud: 1
+  DebugPanelWidth: 380
+  DebugHeadOffset: 0.25
 --- !u!114 &249588924
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -349,6 +350,8 @@ MonoBehaviour:
   DebugStunModifier: {fileID: 0}
   DebugHasteModifier: {fileID: 0}
   DebugWoundModifier: {fileID: 0}
+  DebugPossessionEffect: {fileID: 11400000, guid: 90f0c3d98a996ad4eb26e0ed57db6035, type: 2}
+  DebugSoulOutEffect: {fileID: 11400000, guid: ba36283e8b1d5254d877bd4dbbdccf43, type: 2}
 --- !u!114 &249588928
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -721,6 +724,181 @@ MonoBehaviour:
   m_ShadowLayerMask: 1
   m_RenderingLayers: 1
   m_ShadowRenderingLayers: 1
+--- !u!1 &514491413
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 514491417}
+  - component: {fileID: 514491416}
+  - component: {fileID: 514491415}
+  - component: {fileID: 514491414}
+  - component: {fileID: 514491418}
+  m_Layer: 0
+  m_Name: Enemy Camera
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &514491414
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 514491413}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 98c9025f87d42894bb60ffc45c8bf7cd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Entity.Runtime::CameraRig
+  FollowEntity: {fileID: 522507356}
+  ThirdPersonPivotHeight: 1.5
+  ThirdPersonCameraDistance: 8
+  ShoulderOffsetDistance: 1.5
+  ShoulderSwitchSmoothSpeed: 10
+  CurrentShoulderSide: 1
+  FirstPersonEyeHeight: 0.6
+  ViewModeSwitchSmoothSpeed: 8
+  LookDownPullStartAngle: 35
+  LookDownPullMinFactor: 0.25
+  LookDownPullSmoothSpeed: 6
+  SprintFovBoost: 12
+  SprintFovSmoothSpeed: 5
+  InputActionAsset: {fileID: -944628639613478452, guid: 5a9fd8f2346e44f40ae2cb6689c8f306, type: 3}
+  GamepadLookRotationSpeed: 150
+  MouseLookSensitivity: 0.3
+  LookUpAngleLimit: 90
+  LookDownAngleLimit: 90
+  MinimumCameraHeightAboveGround: 0.2
+  MinimumCameraDistance: 2
+  GroundSearchDistance: 10
+  GroundMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  LockAndHideCursor: 1
+--- !u!81 &514491415
+AudioListener:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 514491413}
+  m_Enabled: 1
+--- !u!20 &514491416
+Camera:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 514491413}
+  m_Enabled: 1
+  serializedVersion: 2
+  m_ClearFlags: 1
+  m_BackGroundColor: {r: 0.19215687, g: 0.3019608, b: 0.4745098, a: 0}
+  m_projectionMatrixMode: 1
+  m_GateFitMode: 2
+  m_FOVAxisMode: 0
+  m_Iso: 200
+  m_ShutterSpeed: 0.005
+  m_Aperture: 16
+  m_FocusDistance: 10
+  m_FocalLength: 50
+  m_BladeCount: 5
+  m_Curvature: {x: 2, y: 11}
+  m_BarrelClipping: 0.25
+  m_Anamorphism: 0
+  m_SensorSize: {x: 36, y: 24}
+  m_LensShift: {x: 0, y: 0}
+  m_NormalizedViewPortRect:
+    serializedVersion: 2
+    x: 0
+    y: 0
+    width: 1
+    height: 1
+  near clip plane: 0.3
+  far clip plane: 1000
+  field of view: 60
+  orthographic: 0
+  orthographic size: 5
+  m_Depth: 0
+  m_CullingMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_RenderingPath: -1
+  m_TargetTexture: {fileID: 0}
+  m_TargetDisplay: 0
+  m_TargetEye: 3
+  m_HDR: 1
+  m_AllowMSAA: 1
+  m_AllowDynamicResolution: 0
+  m_ForceIntoRT: 0
+  m_OcclusionCulling: 1
+  m_StereoConvergence: 10
+  m_StereoSeparation: 0.022
+--- !u!4 &514491417
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 514491413}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &514491418
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 514491413}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a79441f348de89743a2939f4d699eac1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalCameraData
+  m_RenderShadows: 1
+  m_RequiresDepthTextureOption: 2
+  m_RequiresOpaqueTextureOption: 2
+  m_CameraType: 0
+  m_Cameras: []
+  m_RendererIndex: -1
+  m_VolumeLayerMask:
+    serializedVersion: 2
+    m_Bits: 1
+  m_VolumeTrigger: {fileID: 0}
+  m_VolumeFrameworkUpdateModeOption: 2
+  m_RenderPostProcessing: 0
+  m_Antialiasing: 0
+  m_AntialiasingQuality: 2
+  m_StopNaN: 0
+  m_Dithering: 0
+  m_ClearDepth: 1
+  m_AllowXRRendering: 1
+  m_AllowHDROutput: 1
+  m_UseScreenCoordOverride: 0
+  m_ScreenSizeOverride: {x: 0, y: 0, z: 0, w: 0}
+  m_ScreenCoordScaleBias: {x: 0, y: 0, z: 0, w: 0}
+  m_RequiresDepthTexture: 0
+  m_RequiresColorTexture: 0
+  m_TaaSettings:
+    m_Quality: 3
+    m_FrameInfluence: 0.1
+    m_JitterScale: 1
+    m_MipBias: 0
+    m_VarianceClampScale: 0.9
+    m_ContrastAdaptiveSharpening: 0
+  m_Version: 2
 --- !u!1 &522507354
 GameObject:
   m_ObjectHideFlags: 0
@@ -761,7 +939,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a5da7b64ee185134e9d7451e9fb3ad5f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Entity.Runtime::EntityVisual
-  ShowDebugHud: 1
+  DebugPanelWidth: 380
+  DebugHeadOffset: 0.25
 --- !u!114 &522507356
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -817,13 +996,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0324c647fc0c29843b967851c41280f2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Entity.Runtime::PlayerInputSource
-  ViewTransform: {fileID: 330585546}
+  ViewTransform: {fileID: 514491417}
   FallbackActions: {fileID: -944628639613478452, guid: 5a9fd8f2346e44f40ae2cb6689c8f306, type: 3}
   SprintMode: 0
   SprintTapTime: 0.3
   DebugStunModifier: {fileID: 0}
   DebugHasteModifier: {fileID: 0}
   DebugWoundModifier: {fileID: 0}
+  DebugPossessionEffect: {fileID: 0}
+  DebugSoulOutEffect: {fileID: 0}
 --- !u!114 &522507360
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -847,7 +1028,7 @@ MonoBehaviour:
     TideCooldownRemaining: 0
   Armor:
     Head: {fileID: 11400000, guid: b2009b4ec8f408240a01137207c7d477, type: 2}
-    Chest: {fileID: 11400000, guid: 583e7493f6d64994888129aeb88593e9, type: 2}
+    Chest: {fileID: 0}
     Legs: {fileID: 0}
     Feet: {fileID: 0}
   Accessories:
@@ -882,7 +1063,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 572389ba19061e149b9098e7b27575a5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Entity.Runtime::EntityMotor
-  WalkSpeed: 5
+  WalkSpeed: 4
   SprintMultiplier: 1.6
   TurnSpeed: 10
   JumpHeight: 1.2
@@ -1015,7 +1196,7 @@ Transform:
   m_GameObject: {fileID: 522507354}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 10, y: 1.5, z: 0}
+  m_LocalPosition: {x: 0, y: 1.55, z: 7}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1135,7 +1316,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
+  - {fileID: 2100000, guid: 514a0148f99b5604abaee1fa77ceaa82, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -1192,3 +1373,4 @@ SceneRoots:
   - {fileID: 1857199947}
   - {fileID: 249588920}
   - {fileID: 522507367}
+  - {fileID: 514491417}

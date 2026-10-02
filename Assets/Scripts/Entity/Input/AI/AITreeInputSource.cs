@@ -69,7 +69,8 @@ public sealed class AITreeInputSource : MonoBehaviour, IInputSource
         // 防身：被附身驱动的实体（身上挂着附身载体 buff）不该再被 AI 写入指令。
         // 正常路径下会话期间本源的 Bound 已为 false（换绑时被 Deactivate），这里是双保险——
         // 万一绑定状态被外部绕过，也不会出现"AI 与玩家同时开这具身体"
-        if (Entity.Brain.Modifiers.GetHeld<IPossessionEffect>() != null)
+        if (Entity.Brain.InputSource is PlayerInputSource
+            && Entity.Brain.Modifiers.GetHeld<IPossessionEffect>()?.PossessionRole == EnumPossessionRole.Possessed)
         {
             return;
         }

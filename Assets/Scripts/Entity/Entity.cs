@@ -32,7 +32,7 @@ public sealed class Entity : MonoBehaviour
     [Tooltip("开局绑定玩家输入源（Bootstrap 据此选 PlayerInputSource / AITreeInputSource；"
         + "只管谁来下指令，不管指令能不能执行——那是 Capability 的事）。"
         + "运行时「是否玩家控制」的唯一真相是 Brain.InputSource（is PlayerInputSource），"
-        + "控制权转移 = Brain.BindInputSource（F10 附身演示）")]
+        + "控制权转移 = Brain.BindInputSource（V / LB 附身演示）")]
     [SerializeField] private bool startPlayerControlled;
 
     /// <summary>开局绑定选择（Brain.Bootstrap 读一次；运行时控制状态看 Brain.InputSource）</summary>

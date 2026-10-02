@@ -6,7 +6,7 @@
 /// - JumpPower（基础 = EntityMotor.JumpHeight）→ EntityBrain.TryConsumeJump
 /// - AttackSpeed（基础 = WeaponSO.attackSpeed × 出招表段时长）→ AttackState 段计时
 /// - DamageTaken（基础 = 1）→ EntityBrain.TakeDamage 入口
-/// - DamageDealt（基础 = 1）→ M3 命中入口（本轮只挂账不读）
+/// - DamageDealt（基础 = 1）→ EntityBrain.ResolveHit 命中结算（检测尚未接入）
 /// </summary>
 public enum EnumStatType
 {

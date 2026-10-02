@@ -35,7 +35,7 @@ public sealed class ArmorSetRuntimeTests
 
         Assert.IsNotNull(TestEntity.Brain.Modifiers, "Bootstrap 应装配 ModifierList");
         Assert.IsNotNull(TestEntity.Brain.ArmorSets, "Bootstrap 应装配 ArmorSetBonusList");
-        Assert.AreSame(TestEntity.Brain.ArmorSets, TestEntity.Slots.ArmorSetBonuses, "容器应持有同一个套装引擎");
+        // 后续装备测试验证变更事件的同步；Data 不再反向持有 Logic 引擎。
     }
 
     [UnityTearDown]

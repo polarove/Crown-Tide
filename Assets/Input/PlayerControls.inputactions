@@ -6,6 +6,15 @@
             "id": "d1c95232-3842-4d9f-a18c-f5effb8e6511",
             "actions": [
                 {
+                    "name": "Possess",
+                    "type": "Button",
+                    "expectedControlType": "Button",
+                    "id": "243c5b2d-43c8-47a2-b530-2f566bc30936",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
                     "name": "Move",
                     "type": "Value",
                     "expectedControlType": "Vector2",
@@ -88,6 +97,28 @@
                 }
             ],
             "bindings": [
+                {
+                    "name": "",
+                    "id": "cc07ee16-8b83-4b49-b7db-75c05333d30b",
+                    "path": "<Keyboard>/v",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Keyboard&Mouse",
+                    "action": "Possess",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "829155cd-947c-4c53-aa39-ec1db967031d",
+                    "path": "<Gamepad>/leftShoulder",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Gamepad",
+                    "action": "Possess",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
                 {
                     "name": "WASD",
                     "id": "66832e19-a271-4a7c-9652-f3bba8128f43",

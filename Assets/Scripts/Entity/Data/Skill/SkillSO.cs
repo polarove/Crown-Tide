@@ -1,30 +1,34 @@
 using Assets.Scripts.Entity.Data.Skill;
+using System;
 using UnityEngine;
 
-/// <summary>
-/// 技能（ScriptableObject，Data 层）：冠冕/潮汐技能位的一条技能数据。
-/// 双闸门（已定案）：冷却（SkillSlot 记冷却剩余，-= deltaTime）+ 信心方向闸门
-/// （SkillResource.CanApply：冠冕涨/潮汐降，贴边锁向——防单一技能依赖，需求钦定）。
-/// faithDelta 是**正数幅度**：实际增量 = (int)kind × faithDelta（枚举值即方向因子：
-/// 冠冕位 +1 涨、潮汐位 -1 降）——方向由技能位钦定，资产不可能配错方向；
-/// 把冠冕推到 +67 上界就锁冠冕，必须换潮汐拉回，钟摆如此往复。
-/// 技能的执行效果（位移/伤害/施加 Modifier）后置：将来挂效果引用或段位数据，本结构不动。
-/// 新技能 = 一份数据 + 决策树/按键指派，零代码。
-/// </summary>
+/// <summary>技能数据模板。只声明条件与效果，不执行行为，不存实体运行时状态。</summary>
 [CreateAssetMenu(fileName = "Skill", menuName = "Crown Tide/技能")]
 public class SkillSO : ScriptableObject
 {
-    [Header("基础")]
-    [Tooltip("显示名（调试面板/将来战斗 UI 用）")]
     public string Name = "新技能";
-
-    [Tooltip("技能种类：决定占用 SkillSlot 的固定位（冠冕/潮汐）")]
     public EnumSkillType Kind = EnumSkillType.Crown;
 
-    [Header("闸门")]
-    [Tooltip("信心幅度（配正数）：实际增量 = 技能位方向 × 此值（冠冕位 +、潮汐位 -），钳在 ±faithCapacity——方向由位钦定不会配错")]
-    public int Faith = 20;
+    [Header("释放条件")]
+    [Min(1), Tooltip("信心阈值幅度；冠冕 ≥ 此值，潮汐 ≤ -此值")]
+    public int FaithThreshold = 33;
 
-    [Tooltip("冷却秒数（SkillSlot 记冷却剩余，释放成功后开始倒数；0 = 无冷却）")]
+    [Tooltip("显式允许被控制期间释放，供解控技能配置")]
+    public bool AllowWhileControlled;
+
+    [Min(0f)]
     public float Cooldown = 5f;
+
+    [Header("统一 Effect（施加到释放者）")]
+    [Tooltip("普通释放的持续效果；空列表合法，不补造角色专属技能")]
+    public ModifierEffect[] Effects = Array.Empty<ModifierEffect>();
+
+    [Tooltip("满信心时替代普通效果；空列表回退普通效果。需按键释放，不自动释放")]
+    public ModifierEffect[] BurstEffects = Array.Empty<ModifierEffect>();
+
+    [Tooltip("潮汐成功释放后额外授予的效果；可配置冠冕吸血，数值与时长待设计确认")]
+    public ModifierEffect[] AfterTideEffects = Array.Empty<ModifierEffect>();
+
+    [Tooltip("成功释放时先驱散这些类别；None = 不驱散，解控技能须同时显式允许控制中释放")]
+    public EnumModifierCategory DispelOnCast = EnumModifierCategory.None;
 }

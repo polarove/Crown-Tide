@@ -41,15 +41,16 @@ public static class CreateSceneDemo
 
         GameObject player = BuildPlayer();
         GameObject enemy = BuildEnemy(player.transform);
+        PlaceOnPlatform(scene, player, enemy);
         // 附身资产先建好：下面给玩家调试槽接线要用（幂等）
         CreateArmorSetDemoAssets.EnsurePossessionEffects();
-        // 相机各属实体：Main Camera 跟玩家、Enemy Camera 跟敌人——附身切换（F10）靠各自亮灭互换，不挪相机
+        // 相机各属实体：Main Camera 跟玩家、Enemy Camera 跟敌人——附身切换（V / LB）靠各自亮灭互换，不挪相机
         CameraRig playerCamera = ConfigureCameraRig("Main Camera", player);
         CameraRig enemyCamera = ConfigureCameraRig("Enemy Camera", enemy);
         ConfigurePlayerInput(player, isPlayer: true, playerCamera);
         ConfigurePlayerInput(enemy, isPlayer: false, enemyCamera);
 
-        // 附身不再需要场景级管理器：会话状态就是 buff——F10 时给目标挂「被附身」载体、
+        // 附身不再需要场景级管理器：会话状态就是 buff——V / LB 时给目标挂「被附身」载体、
         // 给自己挂「灵魂出窍」标记，EntityBrain 感知 buff 换绑、Duration 到期自动换回
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene);
@@ -60,7 +61,7 @@ public static class CreateSceneDemo
             + $"· AI「{enemy.name}」位置 {enemy.transform.position}（AITreeInputSource 追击玩家；只戴头盔，1 件不激活档位）\n"
             + "· 相机各属实体：Main Camera 跟玩家、Enemy Camera 跟敌人（F1 切肩 / F2 切第一人称；"
             + "附身时旧相机熄灭、接管者的相机亮起，不挪相机）\n"
-            + "· 附身（buff 驱动，无管理器）：F10 挂「被附身」buff 到目标 + 「灵魂出窍」到自己，"
+            + "· 附身（buff 驱动，无管理器）：V / LB 挂「被附身」buff 到目标 + 「灵魂出窍」到自己，"
             + "Duration 到期自动摘 buff = 自动换回；期间不能中途退出\n"
             + "操作：WASD 移动、Shift 加速、空格跳；调试键 F3~F11 见 PlayerInputSource 头注释");
     }
@@ -106,11 +107,15 @@ public static class CreateSceneDemo
         }
 
         // 附身接线（buff 驱动，无需场景级管理器）：玩家调试槽要挂上两份附身资产，
-        // 否则 F10 无从发起。资产由「生成护甲套装演示资产」创建
+        // 否则 V / LB 无从发起。资产由「生成护甲套装演示资产」创建
         PlayerInputSource? playerInput = player != null ? player.GetComponent<PlayerInputSource>() : null;
-        if (playerInput == null || playerInput.DebugPossessionEffect == null)
+        if (playerInput == null || playerInput.DebugPossessionEffect == null
+            || playerInput.DebugSoulOutEffect == null
+            || playerInput.DebugPossessionEffect.PossessionRole != EnumPossessionRole.Possessed
+            || playerInput.DebugSoulOutEffect.PossessionRole != EnumPossessionRole.SoulOut
+            || playerInput.DebugPossessionEffect.Duration <= 0f || playerInput.DebugSoulOutEffect.Duration > 0f)
         {
-            Debug.LogError("[场景校验] 玩家 PlayerInputSource 的 DebugPossessionEffect 未配（F10 附身不可用）");
+            Debug.LogError("[场景校验] 玩家 PlayerInputSource 的 DebugPossessionEffect 未配（V / LB 附身不可用）");
             failures++;
         }
 
@@ -151,6 +156,58 @@ public static class CreateSceneDemo
 
     // ---- 装配 ----
 
+    [MenuItem("Crown Tide/修复 SampleScene 平台出生位置")]
+    public static void FixPlatformSpawns()
+    {
+        var scene = UnityEngine.SceneManagement.SceneManager.GetSceneByPath(ScenePath);
+        bool openedHere = !scene.isLoaded;
+        if (openedHere)
+        {
+            scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Additive);
+        }
+        try
+        {
+            GameObject player = FindInScene(scene, "Player")
+                ?? throw new System.InvalidOperationException("SampleScene 缺少 Player");
+            GameObject enemy = FindInScene(scene, "Enemy")
+                ?? throw new System.InvalidOperationException("SampleScene 缺少 Enemy");
+            PlaceOnPlatform(scene, player, enemy);
+            EditorSceneManager.MarkSceneDirty(scene);
+            EditorSceneManager.SaveScene(scene);
+            Debug.Log($"[平台出生修复] Player={player.transform.position}, Enemy={enemy.transform.position}");
+        }
+        finally
+        {
+            if (openedHere)
+            {
+                EditorSceneManager.CloseScene(scene, removeScene: true);
+            }
+        }
+    }
+
+    private static void PlaceOnPlatform(UnityEngine.SceneManagement.Scene scene, params GameObject[] actors)
+    {
+        GameObject platform = FindInScene(scene, "Platform")
+            ?? throw new System.InvalidOperationException("SampleScene 缺少 Platform");
+        Collider ground = platform.GetComponent<Collider>();
+        if (ground == null || !ground.enabled || ground.isTrigger)
+        {
+            throw new System.InvalidOperationException("Platform 需要启用的非 Trigger 碰撞体");
+        }
+        Physics.SyncTransforms();
+        foreach (GameObject actor in actors)
+        {
+            CharacterController controller = actor.GetComponent<CharacterController>();
+            Vector3 position = actor.transform.position;
+            float bottom = actor.transform.TransformPoint(controller.center).y
+                - controller.height * Mathf.Abs(actor.transform.lossyScale.y) / 2f;
+            // 胶囊底端放到平台上方留少量间隙，避免出生时穿插后被推出平台底面。
+            position.y += ground.bounds.max.y + 0.05f - bottom;
+            actor.transform.position = position;
+            EditorUtility.SetDirty(actor.transform);
+        }
+    }
+
     private static GameObject BuildPlayer()
     {
         GameObject player = NewEntityObject("Player", PlayerSpawn);
@@ -161,7 +218,6 @@ public static class CreateSceneDemo
             RequiredProperty(so, "startPlayerControlled").boolValue = true;   // 开局绑玩家输入源（此后控制状态以 Brain.InputSource 为准）
         });
         ConfigureMotor(player.GetComponent<EntityMotor>(), walkSpeed: 5f);
-        ConfigureVisual(player.GetComponent<EntityVisual>(), showDebugHud: true);
         ConfigureArmor(player.GetComponent<CharacterSlotContainer>(), "Armor_DemoHead", "Armor_DemoChest");
 
         return player;
@@ -174,10 +230,9 @@ public static class CreateSceneDemo
         SetSerialized(enemy.GetComponent<Entity>(), so =>
         {
             RequiredProperty(so, "config", "Config").objectReferenceValue = LoadConfig(CreateArmorSetDemoAssets.EnemyConfigPath);
-            RequiredProperty(so, "startPlayerControlled").boolValue = false;   // 开局绑 AI 输入源（F10 可附身接管）
+            RequiredProperty(so, "startPlayerControlled").boolValue = false;   // 开局绑 AI 输入源（V / LB 可附身接管）
         });
         ConfigureMotor(enemy.GetComponent<EntityMotor>(), walkSpeed: 4f);   // 比玩家慢一点，追得上但不瞬移
-        ConfigureVisual(enemy.GetComponent<EntityVisual>(), showDebugHud: false);   // 靠玩家 HUD 看即可，少挡画面
         ConfigureArmor(enemy.GetComponent<CharacterSlotContainer>(), "Armor_DemoHead");   // 只 1 件：不激活档位
 
         // 感知：直接赋 Transform（正式感知系统后置；AI 追击决策消费它）
@@ -225,11 +280,6 @@ public static class CreateSceneDemo
         EditorUtility.SetDirty(motor);
     }
 
-    private static void ConfigureVisual(EntityVisual visual, bool showDebugHud)
-    {
-        visual.ShowDebugHud = showDebugHud;
-        EditorUtility.SetDirty(visual);
-    }
 
     /// <summary>玩家输入源接线：视角基准（本实体的相机）、输入资源；瞄准/加速动作由 PlayerInput 的 Actions 提供。
     /// 敌人也接（附身时 ViewTransform/FallbackActions 已就位）</summary>
@@ -240,7 +290,7 @@ public static class CreateSceneDemo
         inputSource.FallbackActions = LoadInputActions();
         if (isPlayer)
         {
-            // 附身调试槽（buff 驱动，无需场景级管理器）：F10 用它们挂 buff
+            // 附身调试槽（buff 驱动，无需场景级管理器）：V / LB 用它们挂 buff
             inputSource.DebugPossessionEffect =
                 AssetDatabase.LoadAssetAtPath<PossessionEffect>(CreateArmorSetDemoAssets.PossessedEffectPath);
             inputSource.DebugSoulOutEffect =
@@ -248,11 +298,7 @@ public static class CreateSceneDemo
         }
         EditorUtility.SetDirty(inputSource);
 
-        if (!isPlayer)
-        {
-            return;   // AI 实体不需要 PlayerInput 的资源（组件为满足 RequireComponent 存在即可）
-        }
-
+        // AI 实体被附身后也必须具有完整 Actions、消息回调与默认动作表。
         PlayerInput playerInput = go.GetComponent<PlayerInput>();
         InputActionAsset? actions = LoadInputActions();
         if (actions != null)
@@ -268,6 +314,10 @@ public static class CreateSceneDemo
     /// <summary>装上演示护甲件（按 assetNames 顺序取，件数即套装有效件数）</summary>
     private static void ConfigureArmor(CharacterSlotContainer slots, params string[] assetNames)
     {
+        slots.Armor.Unequip(EnumArmorPart.Head);
+        slots.Armor.Unequip(EnumArmorPart.Chest);
+        slots.Armor.Unequip(EnumArmorPart.Legs);
+        slots.Armor.Unequip(EnumArmorPart.Feet);
         foreach (string assetName in assetNames)
         {
             ArmorSO piece = AssetDatabase.LoadAssetAtPath<ArmorSO>($"{ArmorFolder}/{assetName}.asset");

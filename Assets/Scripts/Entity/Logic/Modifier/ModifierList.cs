@@ -3,7 +3,7 @@ using System.Text;
 using UnityEngine;
 
 /// <summary>
-/// 修饰列表（Logic 层，纯 C#，玩法路径零分配）：Buff/Debuff 条目的生命周期 + 投影。
+/// 修饰列表（Logic 层，纯 C#）：Buff/Debuff 条目的生命周期 + 投影。
 /// 旧 StatusEffectContainer 平移改名（宿主从黑板换成 Entity），职责链逐条保真：
 /// Apply（叠加策略/霸体仲裁）→ Tick（时长/周期/到期移除）→ SyncProjection：
 /// - 数值成分 → GetStatMultiplier 乘法链（消费读点见 EnumStatType）；
@@ -23,13 +23,16 @@ public sealed class ModifierList
         public ModifierEffect Effect = null!;   // 唯一构造点已赋值（Apply 里 new）
         public bool ControlActive;         // 施加时刻定死：data.hasControl 且当时未处于霸体
         public float RemainingTime;        // data.duration <= 0 时不倒计时（永久，仅驱散可清）
+        public bool IsTimed;                // 施加时快照，运行时改模板不能改变实例是否计时
         public int Stacks = 1;
         public float PeriodicAccumulator;  // 周期累加器（跳伤用）
+        public float FaithAccumulator;     // 与跳伤分开的显式信心事件计时器
     }
 
     private readonly Entity Entity = null!;   // 构造函数注入（Entity 不会为 null）
     private readonly List<Modifier> Modifiers = new();   // 挂载序 = 稳定序（同强度先挂者胜）
     private ulong Mask;   // 容器域标签位（只扩张不收缩——位一旦归容器管，条目摘除后由 SyncOwned 清零）
+    public bool IsTicking { get; private set; }
 
     public ModifierList(Entity entity)
     {
@@ -40,7 +43,7 @@ public sealed class ModifierList
     /// 返回 = 调用后该效果是否活跃在列表中（已在挂、按叠加策略处理，也算 true）。
     /// 注意霸体只拦控制成分：条目照挂、数值/周期照常——判"这发有没有把失控钉住"请查 HasControlActive。
     /// null data 早退 false（调用侧的调试槽忘拖资产已先行警告，这里静默防炸）</summary>
-    public bool Apply(ModifierEffect modifier)
+    public bool Apply(ModifierEffect modifier, float? durationOverride = null)
     {
         if (modifier == null)
         {
@@ -60,7 +63,8 @@ public sealed class ModifierList
             {
                 case EnumStackPolicy.Refresh:
                     {
-                        existing.RemainingTime = modifier.Duration;
+                        existing.RemainingTime = durationOverride ?? modifier.Duration;
+                        existing.IsTimed = existing.RemainingTime > 0f;
                         break;
                     }
                 case EnumStackPolicy.Stack:
@@ -69,7 +73,8 @@ public sealed class ModifierList
                         {
                             existing.Stacks++;
                         }
-                        existing.RemainingTime = modifier.Duration;   // 满层后再施加 = 回落为刷新时长
+                        existing.RemainingTime = durationOverride ?? modifier.Duration;
+                        existing.IsTimed = existing.RemainingTime > 0f;
                         break;
                     }
                 case EnumStackPolicy.Ignore:
@@ -85,7 +90,8 @@ public sealed class ModifierList
         {
             Effect = modifier,
             ControlActive = modifier.HasControl && !Entity.Brain.Capability.HasControlImmunity(),   // 施加时刻定死
-            RemainingTime = modifier.Duration,
+            RemainingTime = durationOverride ?? modifier.Duration,
+            IsTimed = (durationOverride ?? modifier.Duration) > 0f,
             Stacks = 1,
             PeriodicAccumulator = 0f,
         });
@@ -97,31 +103,71 @@ public sealed class ModifierList
     /// 由 Brain 管线在状态机之前调用——控制投影当帧压制；帧末施加的效果次帧压制</summary>
     public void Tick(float deltaTime)
     {
-        for (int i = Modifiers.Count - 1; i >= 0; i--)
+        IsTicking = true;
+        try
         {
-            Modifier modifier = Modifiers[i];
-            if (modifier.Effect.Duration > 0f)
+            for (int i = Modifiers.Count - 1; i >= 0; i--)
             {
-                modifier.RemainingTime -= deltaTime;
-                if (modifier.RemainingTime <= 0f)
+                Modifier modifier = Modifiers[i];
+                if (modifier.IsTimed)
                 {
-                    Modifiers.RemoveAt(i);   // 倒序遍历中移除，保序
-                    continue;
+                    modifier.RemainingTime -= deltaTime;
+                    if (modifier.RemainingTime <= 0f)
+                    {
+                        Modifiers.RemoveAt(i);   // 倒序遍历中移除，保序
+                        continue;
+                    }
+                }
+
+                // 周期跳伤：interval <= 0 视为无周期（防配置事故把 while 变死循环）
+                if (modifier.Effect.HasPeriodic && modifier.Effect.TickInterval > 0f)
+                {
+                    modifier.PeriodicAccumulator += deltaTime;
+                    while (modifier.PeriodicAccumulator >= modifier.Effect.TickInterval)
+                    {
+                        modifier.PeriodicAccumulator -= modifier.Effect.TickInterval;
+                        Entity.Brain.TakeDamage(modifier.Effect.DamagePerTick * modifier.Stacks, countsAsHit: false);
+                    }
+                }
+
+                float interval = modifier.Effect.FaithTickInterval;
+                if (modifier.Effect.FaithDeltaPerTick != 0 && interval > 0f
+                    && !float.IsNaN(interval) && !float.IsInfinity(interval))
+                {
+                    modifier.FaithAccumulator += deltaTime;
+                    while (modifier.FaithAccumulator >= interval)
+                    {
+                        modifier.FaithAccumulator -= interval;
+                        long delta = (long)modifier.Effect.FaithDeltaPerTick * modifier.Stacks;
+                        int amount = (int)System.Math.Min(int.MaxValue, System.Math.Abs(delta));
+                        if (delta > 0) new CrownEvent(Entity, amount).Invoke();
+                        else new TideEvent(Entity, amount).Invoke();
+                    }
                 }
             }
+            SyncProjection();
+        }
+        finally
+        {
+            IsTicking = false;
+        }
+    }
 
-            // 周期跳伤：interval <= 0 视为无周期（防配置事故把 while 变死循环）
-            if (modifier.Effect.HasPeriodic && modifier.Effect.TickInterval > 0f)
+    /// <summary>延长本实体的一次限时效果；不写共享模板，不把永久效果变成限时效果。</summary>
+    public bool ExtendDuration(ModifierEffect effect, float seconds)
+    {
+        if (seconds <= 0f || float.IsNaN(seconds) || float.IsInfinity(seconds)) return false;
+        foreach (Modifier modifier in Modifiers)
+        {
+            if (ReferenceEquals(modifier.Effect, effect) && modifier.IsTimed)
             {
-                modifier.PeriodicAccumulator += deltaTime;
-                while (modifier.PeriodicAccumulator >= modifier.Effect.TickInterval)
-                {
-                    modifier.PeriodicAccumulator -= modifier.Effect.TickInterval;
-                    Entity.Brain.TakeDamage(modifier.Effect.DamagePerTick * modifier.Stacks);
-                }
+                float remaining = modifier.RemainingTime + seconds;
+                if (float.IsInfinity(remaining)) return false;
+                modifier.RemainingTime = remaining;
+                return true;
             }
         }
-        SyncProjection();
+        return false;
     }
 
     /// <summary>统计乘数：全部活跃条目连乘；Stack 条目按层数自乘（指数叠加）。无修饰 = 1</summary>
@@ -145,6 +191,19 @@ public sealed class ModifierList
             }
         }
         return result;
+    }
+
+    /// <summary>活跃效果按层数相加，最大实际损失生命的 100%；不改模板。</summary>
+    public float GetCrownLifeStealRatio()
+    {
+        float result = 0f;
+        foreach (Modifier modifier in Modifiers)
+        {
+            float ratio = modifier.Effect.CrownLifeStealRatio;
+            if (ratio > 0f && !float.IsNaN(ratio) && !float.IsInfinity(ratio))
+                result += ratio * modifier.Stacks;
+        }
+        return Mathf.Clamp01(result);
     }
 
     /// <summary>是否有失控条目活跃（CC 层解除的判据；被霸体拦掉的条目不算）</summary>
@@ -245,7 +304,7 @@ public sealed class ModifierList
         {
             if (ReferenceEquals(Modifiers[i].Effect, modifier))
             {
-                return modifier.Duration > 0f ? Modifiers[i].RemainingTime : -1f;
+                return Modifiers[i].IsTimed ? Modifiers[i].RemainingTime : -1f;
             }
         }
         return -1f;
@@ -272,7 +331,7 @@ public sealed class ModifierList
             {
                 sb.Append('×').Append(modifier.Stacks);
             }
-            sb.Append(modifier.Effect.Duration > 0f
+            sb.Append(modifier.IsTimed
                 ? " " + modifier.RemainingTime.ToString("0.0") + "s"
                 : " 永久");
         }

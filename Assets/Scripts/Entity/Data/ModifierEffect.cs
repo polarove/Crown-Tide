@@ -12,7 +12,7 @@ public struct StatModifierEntry
 }
 
 /// <summary>
-/// 修饰效果数据（ScriptableObject，Logic 层）：Buff 与 Debuff 是同一系统的正负两半，
+/// 修饰效果数据（ScriptableObject，Data 层）：Buff 与 Debuff 是同一系统的正负两半，
 /// 一条 Modifier = 控制 / 数值 / 周期 三成分，可只开其一（急速=纯数值、眩晕=纯控制、创伤=纯周期）。
 /// - 控制成分（hasControl）：失控——ModifierList 投影成 CrowdControl 层状态（多挂载单表达，
 ///   呈现种类 = controlKind，Brain 注册表映射）；
@@ -66,6 +66,17 @@ public class ModifierEffect : ScriptableObject
 
     [Tooltip("每跳伤害 × 层数，直接走 EntityBrain.TakeDamage（吃 DamageTaken 乘数与挥剑减伤等入口修正）")]
     public float DamagePerTick = 5f;
+
+    [Header("信心事件（显式配置，默认关闭）")]
+    [Tooltip("有符号事件量：正数冠冕、负数潮汐；0 = 无事件。不会按 Buff 类别自动猜测")]
+    public int FaithDeltaPerTick;
+
+    [Min(0f), Tooltip("信心事件间隔秒数；<= 0 = 不启用，具体频率由配置决定")]
+    public float FaithTickInterval;
+
+    [Header("冠冕生命偷取")]
+    [Range(0f, 1f), Tooltip("冠冕命中实际扣血的回血比例；0 = 不吸血。持续时间沿用 Effect，普通攻击不自动包含")]
+    public float CrownLifeStealRatio;
 
     [Header("标签")]
     [Tooltip("条目活跃期间 Entity 持有的标签（纯命名，读方解释效果——如临时授予的 Riding）")]

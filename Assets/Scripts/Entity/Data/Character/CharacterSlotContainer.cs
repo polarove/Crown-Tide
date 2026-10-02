@@ -30,11 +30,6 @@ public sealed class CharacterSlotContainer : MonoBehaviour
     [Tooltip("饰品槽：占位持有（Data 层不处理逻辑）")]
     public AccessorySlot Accessories = new();
 
-    /// <summary>护甲套装引擎（Logic 层纯 C#；EntityBrain.Bootstrap 注入——Data 层唯一的跨层引用）。
-    /// 装备/卸下护甲后由本类调它的 Sync，保证「装备写入点 ⇒ 套装重算」永远成对。
-    /// 空是**合法状态**（Bootstrap 之前、测试夹具、未挂 Brain 的纯数据用法），故可空</summary>
-    public ArmorSetBonusList? ArmorSetBonuses { get; set; }
-
     /// <summary>当前武器占用的手部容量（空手 = 0；两把都可空，故用 ?.）</summary>
     public int WeaponCapacityConsumed => (Weapons.MainHand?.Cost ?? 0) + (Weapons.OffHand?.Cost ?? 0);
 
@@ -87,7 +82,7 @@ public sealed class CharacterSlotContainer : MonoBehaviour
 
     /// <summary>装备护甲（按 ArmorSO.Part 自动落槽，同部位直接替换旧件）。
     /// 护甲没有容量闸门（区别于武器），唯一失败是空引用——复用 InvalidWeapon 语义。
-    /// 成功后：重算套装档位 → 触发 EquipmentChanged（顺序：先状态后事件）</summary>
+    /// 成功后触发 EquipmentChanged；Brain 订阅并同步套装，Data 不调用 Logic。</summary>
     public EnumEquipResult TryEquipArmor(ArmorSO newArmor)
     {
         if (newArmor == null)
@@ -96,7 +91,6 @@ public sealed class CharacterSlotContainer : MonoBehaviour
         }
 
         Armor.Equip(newArmor);
-        ArmorSetBonuses?.Sync();
         EquipmentChanged?.Invoke();
         return EnumEquipResult.Success;
     }
@@ -108,7 +102,6 @@ public sealed class CharacterSlotContainer : MonoBehaviour
         ArmorSO? removed = Armor.Unequip(part);
         if (removed != null)
         {
-            ArmorSetBonuses?.Sync();
             EquipmentChanged?.Invoke();
         }
         return removed;

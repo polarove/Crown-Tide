@@ -54,7 +54,7 @@ public static class CreateArmorSetDemoAssets
 
         PossessionEffect soulOut = LoadOrCreate<PossessionEffect>(SoulOutEffectPath);
         soulOut.Name = "灵魂出窍";
-        soulOut.Duration = 10f;                         // 与载体同长（两边一起到期）
+        soulOut.Duration = 0f;                          // 永久标记，结束时由双方关联清理
         soulOut.PossessionRole = EnumPossessionRole.SoulOut;
         soulOut.Category = EnumModifierCategory.Buff;
         soulOut.StatModifiers = System.Array.Empty<StatModifierEntry>();

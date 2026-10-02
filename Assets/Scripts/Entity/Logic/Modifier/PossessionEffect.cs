@@ -18,5 +18,8 @@ public sealed class PossessionEffect : ModifierEffect, IPossessionEffect
     [Tooltip("本效果在附身里的角色：Possessed = 会话载体（Duration 即附身时长）；SoulOut = 施法者侧纯标记")]
     public EnumPossessionRole PossessionRole = EnumPossessionRole.Possessed;
 
+    [Tooltip("附身释放条件的显式例外；默认被控制时不能释放")]
+    public bool AllowWhileControlled;
+
     EnumPossessionRole IPossessionEffect.PossessionRole => PossessionRole;
 }

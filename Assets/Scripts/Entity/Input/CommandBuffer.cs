@@ -21,6 +21,7 @@ public sealed class CommandBuffer
 
     // ---- 边沿型（置位后由管线消费清空；无缓冲）----
     public bool JumpQueued;            // 跳跃请求
+    public bool PossessionQueued;      // 固有附身主动技能请求，不占技能槽
     public bool AttackQueued;          // 攻击请求（普攻/瞄准射击/连段续击，由消费点按 Data 翻译）
     public int SkillSlotQueued = 0;    // 想用的技能（EnumSkillKind 值 ±1；0 = 无请求哨兵，0 不是合法技能位）
 
@@ -35,6 +36,7 @@ public sealed class CommandBuffer
     /// <summary>清空边沿型指令（死亡门等"实体不再接受指令"的路径调用，防复活瞬间残留请求）</summary>
     public void ClearEdges()
     {
+        PossessionQueued = false;
         JumpQueued = false;
         AttackQueued = false;
         SkillSlotQueued = 0;

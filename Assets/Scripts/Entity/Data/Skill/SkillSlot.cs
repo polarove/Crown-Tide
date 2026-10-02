@@ -4,10 +4,8 @@ using UnityEngine;
 
 /// <summary>
 /// 技能槽（Data 层，[Serializable] 纯类）：冠冕/潮汐两个固定位 + 各自的冷却剩余。
-/// 双闸门（已定案）：冷却与信心方向闸门相互独立——CanCast 两道都过才放行，
-/// Consume 在释放成功后同时扣冷却与写信心增量（写回 Data，由 Logic 层调用）。
-/// 信心是钟摆不是钱包：增量 = 位方向 × 幅度（(int)kind × faithDelta，冠冕 +1/潮汐 -1），
-/// 贴边即锁该方向（SkillResource.CanApply 方向闸门——防单一技能依赖，需求钦定）。
+/// 装配、种类、冷却、信心阈值校验；成功结算启动冷却并归零。
+/// 强化资格必须在归零前读取；技能执行由 Brain/Logic 负责。
 /// 冷却是"剩余秒数"累积器（-= deltaTime，不用 Time.time 差值——网络时间纪律：
 /// 换 NetworkTime / 固定 tick 只改 Brain 一处传参）。
 /// </summary>
@@ -41,39 +39,52 @@ public sealed class SkillSlot
     }
 
     /// <summary>按种类取技能与冷却槽（冠冕/潮汐两位是数据形状钦定的，不做开放数组）。
-    /// skill 返回可空：返回 false 时它必为 null（未装配），调用方必须用返回值门禁——
+    /// skill 返回可空：未装配、非法位或技能种类错位均返回 false，调用方必须用返回值门禁——
     /// 这就是 TryGet 模式的用意，注解如实表达</summary>
     public bool TryGet(EnumSkillType kind, out SkillSO? skill, out float cooldownRemaining)
     {
+        if (kind != EnumSkillType.Crown && kind != EnumSkillType.Tide)
+        {
+            skill = null;
+            cooldownRemaining = 0f;
+            return false;
+        }
         bool isCrown = kind == EnumSkillType.Crown;
         skill = isCrown ? Crown : Tide;
         cooldownRemaining = isCrown ? CrownCooldownRemaining : TideCooldownRemaining;
-        return skill != null;
+        return skill != null && skill.Kind == kind;
     }
 
-    /// <summary>释放闸门校验（不扣减）：技能已装配 && 冷却结束 && 信心方向闸门放行。
-    /// 信心增量 = (int)kind × faithDelta（枚举值即方向因子：冠冕 +1 涨、潮汐 -1 降，
-    /// 需求钦定）——方向由技能位钦定，SO 只配正数幅度，不可能配错方向</summary>
+    /// <summary>纯数据门禁；能力门禁由 Logic 额外检查。满值不锁对应技能。</summary>
     public bool CanCast(EnumSkillType kind, SkillResource? faith)
     {
         if (!TryGet(kind, out SkillSO? skill, out float cooldownRemaining) || skill == null)
         {
             return false;
         }
-        if (cooldownRemaining > 0f)
+        if (cooldownRemaining > 0f || float.IsNaN(cooldownRemaining)
+            || skill.FaithThreshold <= 0 || skill.Cooldown < 0f
+            || float.IsNaN(skill.Cooldown) || float.IsInfinity(skill.Cooldown))
         {
             return false;
         }
-        return faith != null && faith.CanApply((int)kind * skill.Faith);
+        return faith != null && (long)(int)kind * faith.Current >= skill.FaithThreshold;
     }
 
-    /// <summary>释放成功结算（Logic 层确认起手后调用）：写冷却 + 写信心增量（写回 Data）。
-    /// 增量 = (int)Kind × Faith（位方向 × 幅度），钳在 ±faithCapacity</summary>
-    public void Consume(EnumSkillType kind, SkillResource? faith)
+    /// <summary>纯数据强化资格；不代表已装备、可释放或自动释放。</summary>
+    public bool IsBurstReady(EnumSkillType kind, SkillResource? faith)
     {
-        if (!TryGet(kind, out SkillSO? skill, out _) || skill == null)
+        return faith != null && faith.Max > 0
+            && (kind == EnumSkillType.Crown || kind == EnumSkillType.Tide)
+            && (long)(int)kind * faith.Current >= faith.Max;
+    }
+
+    /// <summary>再次校验后提交结算；失败不会改变资源或冷却。</summary>
+    public bool Consume(EnumSkillType kind, SkillResource? faith)
+    {
+        if (!CanCast(kind, faith) || !TryGet(kind, out SkillSO? skill, out _) || skill == null)
         {
-            return;
+            return false;
         }
         if (kind == EnumSkillType.Crown)
         {
@@ -83,6 +94,7 @@ public sealed class SkillSlot
         {
             TideCooldownRemaining = skill.Cooldown;
         }
-        faith?.Update((int)kind * skill.Faith);
+        faith!.Reset();
+        return true;
     }
 }

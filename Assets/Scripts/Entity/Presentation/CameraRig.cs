@@ -87,6 +87,7 @@ public sealed class CameraRig : MonoBehaviour
     private InputAction MouseLookAction = null!;            // 鼠标移动（位移语义）
     private InputAction SwitchShoulderAction = null!;
     private InputAction ToggleViewModeAction = null!;
+    private InputActionAsset LocalInputActions = null!;
 
     private float YawRotationAngle = 0f;            // 水平旋转角（绕 Y 轴），不受限制
     private float PitchRotationAngle = 20f;         // 俯仰角，正值向下看，负值向上看
@@ -110,10 +111,14 @@ public sealed class CameraRig : MonoBehaviour
             return;
         }
 
-        GamepadLookAction = InputActionAsset.FindAction("Look", throwIfNotFound: true);
-        MouseLookAction = InputActionAsset.FindAction("MouseLook", throwIfNotFound: true);
-        SwitchShoulderAction = InputActionAsset.FindAction("SwitchShoulder", throwIfNotFound: true);
-        ToggleViewModeAction = InputActionAsset.FindAction("ToggleView", throwIfNotFound: true);
+        // PlayerInput 附身解绑时会关闭自己的动作表。相机只暂停渲染，不会再次 OnEnable，
+        // 因此必须持有独立动作实例，不能让角色输入开关影响视角输入的生命周期。
+        LocalInputActions = Instantiate(InputActionAsset);
+        LocalInputActions.bindingMask = null;
+        GamepadLookAction = LocalInputActions.FindAction("Look", throwIfNotFound: true);
+        MouseLookAction = LocalInputActions.FindAction("MouseLook", throwIfNotFound: true);
+        SwitchShoulderAction = LocalInputActions.FindAction("SwitchShoulder", throwIfNotFound: true);
+        ToggleViewModeAction = LocalInputActions.FindAction("ToggleView", throwIfNotFound: true);
         SwitchShoulderAction.performed += OnSwitchShoulder;
         CameraComponent = GetComponent<Camera>();   // RequireComponent 保证非空
         BaseFieldOfView = CameraComponent.fieldOfView;
@@ -126,10 +131,16 @@ public sealed class CameraRig : MonoBehaviour
         {
             SwitchShoulderAction.performed -= OnSwitchShoulder;
         }
+        if (LocalInputActions != null)
+        {
+            LocalInputActions.Disable();
+            Destroy(LocalInputActions);
+        }
     }
 
     private void OnEnable()
     {
+        if (LocalInputActions == null) return;
         GamepadLookAction.Enable();
         MouseLookAction.Enable();
         SwitchShoulderAction.Enable();
@@ -144,6 +155,7 @@ public sealed class CameraRig : MonoBehaviour
 
     private void OnDisable()
     {
+        if (LocalInputActions == null) return;
         GamepadLookAction.Disable();
         MouseLookAction.Disable();
         SwitchShoulderAction.Disable();
@@ -159,12 +171,16 @@ public sealed class CameraRig : MonoBehaviour
     // 十字键左 = 左肩，十字键右 = 右肩，其他绑定（键盘 F1）= 左右切换
     private void OnSwitchShoulder(InputAction.CallbackContext context)
     {
+        if (FollowEntity == null || !FollowEntity.Brain.HasPlayerView || !CameraComponent.enabled)
+        {
+            return;
+        }
         string controlPath = context.control.path;
-        if (controlPath == "<Gamepad>/dpad/left")
+        if (controlPath.EndsWith("/dpad/left"))
         {
             CurrentShoulderSide = -1;
         }
-        else if (controlPath == "<Gamepad>/dpad/right")
+        else if (controlPath.EndsWith("/dpad/right"))
         {
             CurrentShoulderSide = 1;
         }
@@ -220,10 +236,11 @@ public sealed class CameraRig : MonoBehaviour
 
         // 相机激活感知（只读纪律，零事件耦合）：相机属于实体——仅当自己的实体正被玩家驱动
         // （Brain.InputSource is PlayerInputSource，控制状态唯一真相）时才亮。
-        // F10 控制权转移后旧相机自动熄灭、接管者的相机自动亮起——切换的是"谁的相机在看"，
+        // V / LB 控制权转移后旧相机自动熄灭、接管者的相机自动亮起——切换的是"谁的相机在看"，
         // 相机本身不动、不换跟随目标。多人接缝：分屏下多个玩家相机并亮即是分屏，
         // 将来按"驱动本实体的是本玩家吗"细化（各自设备配对/网络中继）
-        bool playerDriven = FollowEntity.Brain.InputSource is PlayerInputSource;
+        // 原角色死亡收尾保留视角，但 Brain 不再绑定玩家操作。
+        bool playerDriven = FollowEntity.Brain.HasPlayerView;
         SyncCameraActive(playerDriven);
         if (!playerDriven)
         {
@@ -231,6 +248,13 @@ public sealed class CameraRig : MonoBehaviour
             return;   // 熄灭的相机：不锁鼠标、不读视角输入（再亮时视角不跳）、不更新跟随
         }
         Transform followTarget = FollowEntity.transform;
+
+        // 仅读取所属实体已配对的设备，保留各玩家设备隔离；死亡视角保留最后的设备范围。
+        PlayerInput? playerInput = FollowEntity.GetComponent<PlayerInput>();
+        if (playerInput != null && playerInput.devices.Count > 0)
+        {
+            LocalInputActions.devices = playerInput.devices;
+        }
 
         // 编辑器里按 Esc 会解锁指针；窗口重新获得焦点时恢复锁定
         if (LockAndHideCursor && Cursor.lockState != CursorLockMode.Locked && Application.isFocused)

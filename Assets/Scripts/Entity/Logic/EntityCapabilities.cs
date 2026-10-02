@@ -34,8 +34,22 @@ public sealed class EntityCapabilities
     /// 连段续击不查这里（续段是 AttackState 内部事务，不走起手门禁）</summary>
     public bool CanAct()
     {
-        return !Entity.Vitals.IsDead && !IsControlled()
+        return CanUseSkill();
+    }
+
+    /// <summary>技能共用释放门禁；允许被控制时释放的技能必须显式配置例外。</summary>
+    public bool CanUseSkill(bool allowWhileControlled = false)
+    {
+        return !Entity.Vitals.IsDead && (allowWhileControlled || !IsControlled())
             && Machine?.GetActive(EnumStateLayer.Action) == null;
+    }
+
+    /// <summary>普通技能统一查询：通用能力 + 数据条件；附身复用 CanUseSkill。</summary>
+    public bool CanCastSkill(Assets.Scripts.Entity.Data.Skill.EnumSkillType kind)
+    {
+        return Entity.Slots.Skills.TryGet(kind, out SkillSO? skill, out _) && skill != null
+            && CanUseSkill(skill.AllowWhileControlled)
+            && Entity.Slots.Skills.CanCast(kind, Entity.Vitals.Faith);
     }
 
     /// <summary>能否跳跃：活着 && 未失控 && 在地面（冲量类效果都要过 CC 门禁，

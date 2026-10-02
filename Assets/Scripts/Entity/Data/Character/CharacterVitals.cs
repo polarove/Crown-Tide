@@ -46,7 +46,7 @@ public sealed class CharacterVitals : MonoBehaviour
     {
         Config = characterConfig;
         CurrentHp = MaxHp;
-        Faith = new SkillResource(this, 0);   // 居中：开局冠冕/潮汐都放得出（钟摆两侧等距）
+        Faith = new SkillResource(this, 0);   // 初始居中：未达到任一技能的信心阈值。
         IsDead = false;
     }
 

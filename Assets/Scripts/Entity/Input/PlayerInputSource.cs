@@ -19,7 +19,7 @@ public enum EnumSprintInputMode
 /// 移动方向投影读 ViewTransform（视角基准，CameraRig 注入/Inspector 手连）而非 Camera.main——
 /// 多人纪律：每玩家自己的相机，不全局找。
 /// 加速点按/长压判定（四字段）是本输入源的内部状态，不进指令缓冲。
-/// 调试链（F3~F11）随输入源迁移：效果施加/驱散/附身/技能请求，仅设备直读，不走输入资源。
+    /// 附身走 Possess 动作（V / LB）；调试链（F3~F11）仅在 Debug 模式直读设备。
 /// </summary>
 [RequireComponent(typeof(PlayerInput))]
 public sealed class PlayerInputSource : MonoBehaviour, IInputSource
@@ -45,10 +45,10 @@ public sealed class PlayerInputSource : MonoBehaviour, IInputSource
     [Tooltip("F5：对自身施加（创伤演示——周期跳伤/死亡占位）")]
     public ModifierEffect? DebugWoundModifier;
 
-    [Header("调试附身（buff 驱动：挂上即会话开始，Duration 到期自动换回）")]
-    [Tooltip("F10：被附身者身上的会话载体（如「被附身」；Duration = 附身时长）")]
+    [Header("附身效果配置（Duration 到期自动换回）")]
+    [Tooltip("V / LB：被附身者身上的会话载体（如「被附身」；Duration = 附身时长）")]
     public PossessionEffect? DebugPossessionEffect;
-    [Tooltip("F10：发起者身上的纯标记（如「灵魂出窍」；可空 = 不挂标记）")]
+    [Tooltip("V / LB：发起者身上的纯标记（如「灵魂出窍」；必须配置，运行时作为永久标记）")]
     public PossessionEffect? DebugSoulOutEffect;
 
     // 宿主与输入源内部引用：由 Bootstrap 绑定/懒初始化保证存在（懒取在首次 GatherCommands），
@@ -61,6 +61,8 @@ public sealed class PlayerInputSource : MonoBehaviour, IInputSource
     private bool WarnedMissingModifiers; // 调试槽忘拖资产的一次性警告标记（防刷屏）
     private bool WarnedMissingPlayerInput;   // 缺 PlayerInput 组件的一次性警告标记（防刷屏）
     private bool WarnedMissingPossessionEffect;   // 调试附身槽未拖资产的一次性警告标记（防刷屏）
+    private InputDevice[]? PreviousDevices;
+    private string? PreviousControlScheme;
 
     // ---- 输入源内部状态（点按/长按判定只有玩家输入才需要，AI 不用知道）----
     private Vector2 moveInput;           // OnMove 持续更新（屏幕相对杆量，投影成世界方向后即失效）
@@ -109,11 +111,20 @@ public sealed class PlayerInputSource : MonoBehaviour, IInputSource
         }
         Bound = true;
         PlayerInput.enabled = true;
+        // 重新启用会重新自动配对；附身返回必须恢复该输入源离开前的设备。
+        if (PreviousDevices != null && PreviousDevices.Length > 0 && PreviousControlScheme != null
+            && System.Array.TrueForAll(PreviousDevices, device => device.added))
+        {
+            PlayerInput.SwitchCurrentControlScheme(PreviousControlScheme, PreviousDevices);
+        }
     }
 
     public void Deactivate()
     {
         Bound = false;
+        moveInput = Vector2.zero;
+        SprintPressing = SprintToggled = SprintHoldActive = false;
+        SprintPressTimer = 0f;
         // 与 Activate 对称地补懒初始化：反激活可能发生在首次激活之前
         // （Bootstrap 绑 AI 源时就会 Deactivate 本组件），不补则 PlayerInput 仍是 null → NRE
         EnsurePlayerInput();
@@ -121,6 +132,11 @@ public sealed class PlayerInputSource : MonoBehaviour, IInputSource
         {
             WarnIfMissingPlayerInput();
             return;
+        }
+        if (PlayerInput.enabled && PlayerInput.devices.Count > 0)
+        {
+            PreviousDevices = PlayerInput.devices.ToArray();
+            PreviousControlScheme = PlayerInput.currentControlScheme;
         }
         PlayerInput.enabled = false;
     }
@@ -182,6 +198,21 @@ public sealed class PlayerInputSource : MonoBehaviour, IInputSource
         }
         // 攻击请求不在这里翻译（瞄准中是不是射击由 Brain 按 Data 决定）——只置边沿
         EnsureEntity().Commands.AttackQueued = true;
+    }
+
+    // 正式玩法输入：V / LB。仅提交意图，释放条件由 Brain 统一检查。
+    private void OnPossess(InputValue inputValue)
+    {
+        if (!Bound || !inputValue.isPressed)
+        {
+            return;
+        }
+        if (DebugPossessionEffect == null || DebugSoulOutEffect == null)
+        {
+            WarnMissingDebugPossession();
+            return;
+        }
+        EnsureEntity().Commands.PossessionQueued = true;
     }
 
     /// <summary>每帧采集：加速键 → 杆量投影成视角相对方向 → 长按判定 → 瞄准电平 → 汇总写缓冲</summary>
@@ -279,13 +310,16 @@ public sealed class PlayerInputSource : MonoBehaviour, IInputSource
     }
 
     /// <summary>调试输入：F3/F4/F5 对自身施加调试效果、F6 全驱散、F7 对场景内其他实体施加眩晕、
-    /// F9 请求冠冕技能（信心钟摆涨向）、F10 发起附身（挂「被附身」buff 到目标 + 「灵魂出窍」到自己，
-    /// 换绑由 EntityBrain 感知 buff 完成，Duration 到期自动换回；会话中不能中途退出）、
-    /// F11 请求潮汐技能（信心钟摆降向；被命中也会降信心——受伤动摇信心）。
+    /// F9 请求冠冕技能（正信心阈值），
+    /// F11 请求潮汐技能（负信心阈值）；成功释放均归零，满值按键释放强化版本。
     /// F1/F2 已被视角切换占用；正式效果来自战斗系统的命中入口；设备直读不走输入资源。
-    /// 注意：本类**不认识任何会话管理器**——附身状态全在 buff 上（Input 层不反向依赖 Logic）</summary>
+    /// 附身独立通过 Possess 动作提交请求，不受此调试开关限制。</summary>
     private void UpdateDebugInput(Entity host)
     {
+        if (!DebugSystem.IsEnabled)
+        {
+            return;
+        }
         Keyboard keyboard = Keyboard.current;
         if (keyboard == null)
         {
@@ -321,40 +355,13 @@ public sealed class PlayerInputSource : MonoBehaviour, IInputSource
         }
         if (keyboard.f9Key.wasPressedThisFrame)
         {
-            // 技能链路冒烟：请求冠冕技能（Brain 消费：CanAct + 双闸门校验 + 写回冷却/信心增量）
+            // Debug 技能请求：能力、冷却、正信心阈值；成功释放归零。
             host.Commands.SkillSlotQueued = (int)EnumSkillType.Crown;
         }
         if (keyboard.f11Key.wasPressedThisFrame)
         {
-            // 信心钟摆降向：请求潮汐技能（faithDelta<0 降信心；贴边 -67 后 CanApply 锁向拒绝）
+            // Debug 潮汐请求：负信心阈值；满值按键释放强化版本。
             host.Commands.SkillSlotQueued = (int)EnumSkillType.Tide;
-        }
-        if (keyboard.f10Key.wasPressedThisFrame)
-        {
-            // 附身会话（核心玩法调试入口）：**buff 驱动**——给目标挂「被附身」载体（Duration = 时长）、
-            // 给自己挂「灵魂出窍」标记；换绑由 EntityBrain 感知 buff 完成，到期自动摘 buff 即自动换回。
-            // 这里不认识任何会话管理器（Input 层不反向依赖 Logic）；会话中不能中途退出（需求钦定）。
-            // 目标选择将来换成瞄准射线（现在遍历找"非玩家驱动 + 未被占用"的存活实体）
-            if (DebugPossessionEffect == null)
-            {
-                WarnMissingDebugPossession();
-            }
-            else
-            {
-                Entity? candidate = FindPossessionCandidate(host);
-                if (candidate == null)
-                {
-                    Debug.Log("F10 附身：场景里没有可用目标（需另一个非玩家驱动、未被附身占用、且活着）");
-                }
-                else if (host.Brain.TryBeginPossession(candidate, DebugPossessionEffect, DebugSoulOutEffect))
-                {
-                    Debug.Log($"F10 附身：{host.name} 灵魂出窍 → 接管 {candidate.name}（{DebugPossessionEffect.Duration:0.0}s 后自动换回）");
-                }
-                else
-                {
-                    Debug.Log("F10 附身被拒绝：已在附身中 / 目标已被占用 / 任一方已死亡");
-                }
-            }
         }
     }
 
@@ -369,7 +376,7 @@ public sealed class PlayerInputSource : MonoBehaviour, IInputSource
             return;
         }
         WarnedMissingPossessionEffect = true;
-        Debug.LogWarning("F10：调试附身槽未拖 PossessionEffect 资产" +
+        Debug.LogWarning("V / LB：调试附身槽未拖 PossessionEffect 资产" +
             "（右键 Create → Crown Tide → 附身效果），此警告只提示一次");
     }
 
