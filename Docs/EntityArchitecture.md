@@ -1,8 +1,9 @@
 # 单位与投射物架构选型指南
 
-> 适用范围：Crown Tide 实体架构（Core / Entity / Player / Npc / Enemy 分层）。
-> 对应代码：`Assets/Scripts/Core`（状态机+黑板+决策树框架）、`Assets/Scripts/Entity`（运动能力）、
-> `Assets/Scripts/Npc`（NPC 管线基类）、各实体目录。
+> 适用范围：Crown Tide 实体架构（BlackBoard / Decision / StateMachine / Entity 分层）。
+> 对应代码：`Assets/Scripts/BlackBoard`（黑板）、`Assets/Scripts/Decision`（决策树）、
+> `Assets/Scripts/StateMachine`（状态机）、`Assets/Scripts/Entity`（实体层：EntityController
+> 运动能力 + NpcController 统一角色层；玩家与敌人是它的两个输入源叶子，七状态在 NPC/States/ 共享）。
 > 本文档回答：每类"会动的东西"该用什么架构，以及为什么。
 > 战斗系统（指令层/装备/连招/选招/阶段）的落地排期见 `Docs/CombatSystemPlan.md`。
 
@@ -13,31 +14,90 @@
 | 问题 | 回答"是"需要 | 对应部件 |
 |---|---|---|
 | 它需要自己决定"做什么"吗？（感知目标、选意图） | 决策层 | 决策树 / 行为树 / Utility |
-| 它的行为有"阶段过程"吗？（前后摇、蓄力、变轨；需要 Enter/Exit 挂动画事件） | 状态机 | Core/StateMachine |
-| 它的各部件间要共享运行数据吗？ | 黑板 | Core/Blackboard |
+| 它的行为有"阶段过程"吗？（前后摇、蓄力、变轨；需要 Enter/Exit 挂动画事件） | 状态机 | StateMachine/State |
+| 它的各部件间要共享运行数据吗？ | 黑板 | BlackBoard/Blackboard |
 
 三个部件互相独立，按需组合。**不是所有会动的东西都要三件套**——架构跟着需求走，
 "用上了框架"本身不是目标，"删掉一个部件也能工作"才是框架分层正确的标志。
 
-## 二、玩家角色（可控单位）：状态机 + 黑板
+## 二、角色层（NpcController）：状态机 + 黑板 + 可替换的输入源
 
-决策由玩家大脑（输入设备）承担，状态机只回答"怎么移动"（Idle/Walk/Sprint/Air）：
+玩家角色与 NPC 在 NpcController 上同构：同一套分层状态机、同一块黑板（NpcBlackboard）、
+同一条运动管线（Update 唯一声明在 NpcController）。**输入源是唯一差异**——
+玩家叶子（PlayerController）把输入设备翻译成指令写黑板，NPC 叶子（如 EnemyController）
+跑决策树把意图翻译成指令写同一块黑板；状态机只消费指令，不关心指令来自谁：
 
 ```
-输入设备 → PlayerBlackboard → 状态机 → EntityController 运动能力
+玩家角色：输入设备 ────────────┐
+                              ├→ NpcBlackboard 指令区 → 状态机（七状态共享） → 运动能力
+敌对角色：感知 → 决策树 ───────┘
 ```
 
-## 三、NPC（不可控单位）：决策树 + 状态机 + 黑板（项目定案，统一使用）
+黑板指令区分两类：**电平型**（MoveDirection/SprintActive——控制器帧首重置、输入源每帧重写，
+"输入源沉默 = 站桩"是框架默认语义，附身切换帧也安全）与**边沿型**
+（JumpQueued/QueuedSkillSlot——置位后由管线消费清空，无缓冲，不清在帧首否则丢输入）。
 
-决策层替代玩家大脑。本项目定案：**所有 NPC 统一决策树 + 状态机 + 黑板**——
-简单 NPC 就是"小决策树"（两三条规则），不按复杂度分档，结构一致便于扩展与阅读。
+### 输入源与附身（"玩家操作 NPC"）
+
+附身 = 给实体换输入源叶子。演示级操作序列（三条前置都满足才不穿帮）：
+①目标实体需要有预配置的 PlayerInput（actions 资产 + Default Map=Player + Send Messages）——
+运行时裸 AddComponent 的 PlayerInput 收不到消息、FindAction 为空，需预制体或工厂代码赋好；
+②CameraFollow.followTarget 同步指向新身体，否则镜头留在旧身体上；
+③先 Disable 旧叶子（如 EnemyController）再挂新叶子——同帧两者都活跃会双重 Move / 双重重力。
+角色配置（walkSpeed/jumpHeight 等）在实体组件上，附身后照用；状态机从 Idle 重建
+（接管瞬间站一帧，无手感影响）。此为演示级临时路径；正式方案是抽 IInputSource 组件
+（附身 = 启用切换，控制器与状态机不动），等附身玩法立项再做——当前"叶子覆写
+UpdateCommands"的形态不排斥该演进。
+
+### 分层状态机（同层互斥、异层叠加）
+
+一个实体可同时处于多个正交层的状态——奔跑时跳跃 = Locomotion 层的 Sprint + Aerial 层的
+Air 并存，空中保持跑速、落地无缝续跑（落地转回 Grounded 不经过 Locomotion，不闪断）。
+
+| 层 | 职责 | 玩家状态示例 |
+|---|---|---|
+| Locomotion | 水平移动（空中照常执行） | Idle / Walk / Sprint（玩家与 NPC 共用；敌人追击=决策写方向走 Walk） |
+| Aerial | 竖直姿态（起跳/离地/落地时机） | Grounded / Air |
+| Action | 主动动作（战斗系统 M1 起） | 攻击 / 闪避 |
+| CrowdControl | 失控，**压制其余全部层** | Stun（眩晕）/ 击倒 |
+
+- **同层互斥**：`ChangeState` 只替换目标状态所属层的活跃状态，其他层不受影响。
+- **压制 = 冻结而非清除**：眩晕期间其余层的状态保留但不执行（Locomotion 停在 Sprint），
+  解除后自动恢复（输入仍在就继续跑）；物理不受影响（重力/地面检测在控制器管线）。
+  冲量类效果（跳跃/击退/闪避）在控制器侧还要过眩晕门禁，否则会绕过压制。
+- 压制规则集中在 `StateLayerRules`；Tick 惰性求值压制，解除当帧即恢复。
+
+### 霸体等"修饰"：状态声明能力，入口仲裁
+
+霸体/无敌帧/隐身这类**修饰**不是层也不是状态（没有行为、不是正交维度），
+统一模式：**状态声明能力，外部系统在施加入口仲裁**。
+
+- `State.GrantsSuperArmor`（虚属性，默认 false）：重击/技能演出等状态覆写为 true，
+  随状态生命周期自动生效/失效（不会忘关）。`StateMachine.HasSuperArmor()` 扫活跃层；
+  `EntityController.HasSuperArmor` 是给命中系统用的多态入口（玩家/NPC 控制器已覆写）。
+- 仲裁时机：战斗命中入口——`if (!target.HasSuperArmor) 施加CC`，伤害照算。
+- 语义细则：**霸体是免疫不是解控**（已生效的 CC 不清除，解除 CC 是 `ClearState` 的净化操作）；
+  通常只挡打断不挡伤害。
+- 两个来源合成：动作型（状态虚属性）+ 装备/Buff 型（黑板标志，装备系统实现时与上面做或运算）。
+- Boss 削韧（Poise）= 霸体的资源化：黑板挂 Poise/MaxPoise，命中先扣韧性、韧尽才施加 CC；
+  数值挂装备/技能配置（装什么会什么），Boss 阶层（PhaseDef）可覆盖 MaxPoise。
+- 同族扩展：无敌帧 `GrantsInvincibility`（命中入口跳过伤害与 CC）同模式加一行虚属性即可。
+
+## 三、NPC（决策树输入源）：决策树 + 状态机 + 黑板（项目定案，统一使用）
+
+决策层替代玩家大脑，但角色层与玩家完全同构（§二）。本项目定案：**所有 NPC 统一
+决策树 + 状态机 + 黑板**——简单 NPC 就是"小决策树"（两三条规则），不按复杂度分档，
+结构一致便于扩展与阅读。
 
 **决策层与状态机的分工**（职责不重叠，都不可省）：
 
 - **决策树回答"做什么"**：无状态、从根整体评估、低频跑（`decisionInterval` 默认 0.2s，
-  省性能 + 条件抖动不会让行为闪烁）；产出意图写入黑板 `DesiredBehavior`。
+  省性能 + 条件抖动不会让行为闪烁）；产出**意图**（如 EnemyBehavior.Chase，叶子私有字段，不进黑板）。
+- **意图翻译回答"把意图变成指令"**：输入源每帧执行（UpdateCommands）——低频决策的产物
+  被连续翻译成黑板指令（追击 → MoveDirection 朝目标）。玩家的"手指"与 AI 的"翻译"在这里同构。
 - **状态机回答"怎么做"**：有状态记忆、每帧跑、承载阶段过程（攻击前摇→命中→后摇等），
-  转换条件简化为"意图变了"。决策树没有记忆表达不了过程，状态机散落的转换条件表达不好"为什么打"。
+  转换条件读指令（HasMoveInput / SprintActive / QueuedSkillSlot）。
+  决策树没有记忆表达不了过程，状态机散落的转换条件表达不好"为什么打"。
 
 防抖设计：`Decision.Decide` 返回 null = 本次无结论，维持原意图；迟滞条件
 （如"目标丢失超过 2s 才放弃追击"）写在决策树的条件里。
@@ -48,14 +108,15 @@
 数据流：
 
 ```
-感知（每帧/事件）→ 黑板 → 决策树（低频）写 DesiredBehavior → 黑板 → 状态机（每帧）→ 运动能力
+感知（每帧/事件）→ 黑板 → 决策树（低频）产出意图 → 意图翻译（每帧，在输入源内部）写指令区
+→ 黑板 → 状态机（每帧）→ 运动能力
 ```
 
 ## 四、招式执行：指令层 + 连招数据表 + 选招（战斗 AI 定案）
 
-实体设计定案：**玩家操作的角色与可攻击的敌对角色继承同一角色类**——武器/饰品/技能槽位
-一致或可拓展，NPC 强度取决于生成时装配的装备。因此"角色能做什么"（装备/技能）与
-"谁在操作"必须解耦，AI 只是另一个输入源：
+实体设计定案（§二已在代码落地）：**玩家操作的角色与可攻击的敌对角色继承同一角色类**
+（NpcController，输入源叶子是唯一差异）——武器/饰品/技能槽位一致或可拓展，NPC 强度取决于
+生成时装配的装备。"角色能做什么"（装备/技能）与"谁在操作"已解耦，AI 只是另一个输入源：
 
 ```
 玩家角色：输入设备（鼠标/手柄）──────────┐
@@ -103,7 +164,7 @@ ComboWindowEndTime`。玩家在窗口内按攻击键 = 续段；NPC 决策树在
 或手动积分），且是批量实例，不该背上实体层的每帧管线成本。
 
 **例外：阶段型投射物**（变轨导弹、蓄力箭、引导光束）有真实的过程阶段，可以复用
-Core/StateMachine（如 `Spawn → Lock → Homing → Detonate`）；但只有两三个阶段时，
+StateMachine/State（如 `Spawn → Lock → Homing → Detonate`）；但只有两三个阶段时，
 一个 enum + 计时器就够了，**不必为了架构统一而强上框架**。
 
 纯表现（弹道拖尾、命中爆闪）归 VFX/粒子系统，不进任何逻辑架构。
@@ -112,8 +173,8 @@ Core/StateMachine（如 `Spawn → Lock → Homing → Detonate`）；但只有�
 
 | 单位类型 | 决策层 | 状态机 | 黑板 | 关键手段 |
 |---|---|---|---|---|
-| 玩家角色 | ✗（玩家输入） | ✓ | ✓ | 输入写黑板；技能走指令层 |
-| NPC 杂兵/精英（统一） | ✓ 决策树 → Utility 选招 | ✓ | ✓ | DesiredBehavior 进黑板；连招=数据表 |
+| 玩家角色 | ✗（玩家输入） | ✓ | ✓ | 输入源叶子写指令区；技能走指令层 |
+| NPC 杂兵/精英（统一） | ✓ 决策树 → Utility 选招 | ✓ | ✓ | 意图翻译写指令区；连招=数据表 |
 | Boss | ✓ Utility + 阶段层 | ✓ | ✓ | 血量切 Phase（行为集） |
 | 召唤物 | ✓（含玩家指令分支） | ✓ | ✓ | 同 NPC，指令最高优先级 |
 | 直线投射物 | ✗ | ✗ | ✗ | 配置驱动 + 对象池 |
@@ -122,9 +183,10 @@ Core/StateMachine（如 `Spawn → Lock → Homing → Detonate`）；但只有�
 
 ## 七、本项目扩展路径
 
-1. **新 NPC**：继承 `NpcController<T>`（自带决策定时器与 NpcMachine），照 `Assets/Scripts/Enemy/`
-   模板写：黑板（含行为枚举 + DesiredBehavior）+ 控制器（InitNpc 建状态与决策树、RunDecision 写意图）+ 状态。
-   感知字段（Target 等）加在 NpcBlackboard 或各 NPC 黑板。
+1. **新 NPC / 新输入源**：继承 `NpcController`，照 `Assets/Scripts/Entity/NPC/Enemy/` 模板写叶子：
+   override InitEntity（先 base 建状态机，再建决策树）+ override UpdateCommands（跑决策 +
+   把意图翻译成指令）；行为枚举与意图字段放叶子私有（不进黑板）。感知字段（Target 等）已在
+   NpcBlackboard。不要声明 Update（管线唯一在 NpcController，误写会收到编译器隐藏警告）。
 2. **决策树组装**：`DecisionSelector`（优先级选择，恒真兜底收尾）为主力，`DecisionBranch`
    做二叉细分；全部纯 C#、构造一次、零每帧分配。
 3. **加投射物**：新建 `Assets/Scripts/Projectile/`（Config + Controller + 对象池），不继承 EntityController。

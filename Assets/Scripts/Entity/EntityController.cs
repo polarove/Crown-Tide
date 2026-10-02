@@ -4,10 +4,12 @@ using UnityEngine;
 /// 实体控制器基类：CharacterController 实体（玩家/敌人/召唤物）共用的序列化运动参数与运动能力。
 /// 派生类规则：
 /// - 只 override CreateBlackboard() / InitEntity()，不要声明 Awake（会静默隐藏基类模板且无编译警告）；
-/// - Update / OnGUI 等魔术方法只能写在叶子控制器里（Unity 只调最派生声明，基类写了会被静默隐藏）；
-/// - 状态机与每帧管线（感知 → 状态机 → 运动）由各叶子控制器自己组织。
+/// - Update 管线已统一在 NpcController（protected virtual Update）：叶子只覆写 UpdateCommands /
+///   UpdateDebugInput 挂钩，不得声明 Update（遮蔽 = 整条管线静默失效）；OnGUI 等仍在叶子声明；
+/// - 本类不组织每帧管线，只提供运动能力原语（移动/重力/地面检测/转向）。
 /// </summary>
 [RequireComponent(typeof(CharacterController))]
+[RequireComponent(typeof(CharacterEquipment))]   // 实体必挂装备：攻击节奏等 = 角色定义 × 武器
 public abstract class EntityController : MonoBehaviour
 {
     [Header("移动")]
@@ -36,14 +38,22 @@ public abstract class EntityController : MonoBehaviour
     protected CharacterController CharacterController { get; private set; }
     protected EntityBlackboard Board { get; private set; }
 
+    /// <summary>装备组件：角色定义 + 武器的组合查询（攻击节奏等，玩家与 NPC 同构）</summary>
+    public CharacterEquipment Equipment { get; private set; }
+
     /// <summary>状态要读的移动速度（活的 Inspector 值，Play 模式调参即时生效）</summary>
     public float WalkSpeed => walkSpeed;
+
+    /// <summary>是否处于霸体（免疫 CrowdControl 的进入）。施加眩晕/击退等效果的命中入口用它仲裁。
+    /// 基类默认 false，玩家与 NPC 控制器覆写为读各自状态机</summary>
+    public virtual bool HasSuperArmor => false;
 
     // 模板 Awake：先取组件 → 建黑板 → 派生初始化，保证 Board 在任何使用前就绪。
     // 派生类不要声明 Awake，只 override CreateBlackboard / InitEntity
     private void Awake()
     {
         CharacterController = GetComponent<CharacterController>();
+        Equipment = GetComponent<CharacterEquipment>();
         Board = CreateBlackboard();
         InitEntity();
     }
