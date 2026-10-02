@@ -1,3 +1,4 @@
+using Assets.Scripts.Entity.Data.Skill;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -17,7 +18,7 @@ using UnityEngine;
 /// </summary>
 [RequireComponent(typeof(EntityMotor))]
 [RequireComponent(typeof(CharacterVitals))]
-[RequireComponent(typeof(EntitySlotContainer))]
+[RequireComponent(typeof(CharacterSlotContainer))]
 [RequireComponent(typeof(PlayerInputSource))]
 [RequireComponent(typeof(AITreeInputSource))]
 public sealed class EntityBrain : MonoBehaviour
@@ -60,12 +61,12 @@ public sealed class EntityBrain : MonoBehaviour
     }
 
     // 两输入源组件（双源同挂是附身演示的前提；缺失对应源时该侧绑定失败并警告）
-    private PlayerInputSource playerSource;
-    private AITreeInputSource aiSource;
-    private bool warnedMissingSource;
+    private PlayerInputSource PlayerSource;
+    private AITreeInputSource AiSource;
+    private bool WarnedMissingSource;
 
     // 调试采样：本帧实测速度（位置差反推，比状态选的速度更可信，能反映碰撞和重力）
-    private Vector3 lastFramePosition;
+    private Vector3 LastFramePosition;
 
     /// <summary>本帧实测速度（调试面板读）</summary>
     public Vector3 DebugVelocity { get; private set; }
@@ -102,11 +103,11 @@ public sealed class EntityBrain : MonoBehaviour
         // 失控呈现注册（EnumControlKind.Stun → 眩晕态；将来冰冻在此加一行）
         controlStates[EnumControlKind.Stun] = StunState;
 
-        playerSource = GetComponent<PlayerInputSource>();
-        aiSource = GetComponent<AITreeInputSource>();
+        PlayerSource = GetComponent<PlayerInputSource>();
+        AiSource = GetComponent<AITreeInputSource>();
         BindInputSource(entity.IsPlayerControlled);
 
-        lastFramePosition = transform.position;
+        LastFramePosition = transform.position;
     }
 
     /// <summary>绑定输入源（IsPlayerControlled 的唯一职责，运行时切换 = 附身）：
@@ -114,23 +115,23 @@ public sealed class EntityBrain : MonoBehaviour
     /// 对应源未挂（如纯敌人没挂 PlayerInputSource）时警告一次并保持无输入（站桩）</summary>
     public void BindInputSource(bool playerControlled)
     {
-        IInputSource target = playerControlled ? playerSource : aiSource;
+        IInputSource target = playerControlled ? PlayerSource : AiSource;
         if (target == null)
         {
-            if (!warnedMissingSource)
+            if (!WarnedMissingSource)
             {
-                warnedMissingSource = true;
+                WarnedMissingSource = true;
                 Debug.LogWarning($"{name}：缺少{(playerControlled ? "PlayerInputSource" : "AITreeInputSource")}组件，实体无输入（站桩）。此警告只提示一次");
             }
         }
         // 两侧都通知：被绑定的激活、另一个停用（null 安全——缺挂的源本来就没人写指令）
-        if (playerSource != null)
+        if (PlayerSource != null)
         {
-            playerSource.SetActive(playerControlled);
+            PlayerSource.SetActive(playerControlled);
         }
-        if (aiSource != null)
+        if (AiSource != null)
         {
-            aiSource.SetActive(!playerControlled);
+            AiSource.SetActive(!playerControlled);
         }
         InputSource = target;
     }
@@ -149,7 +150,7 @@ public sealed class EntityBrain : MonoBehaviour
 
         // 3) 修饰列表（时长/周期跳伤/CC 投影）+ 技能冷却步进
         Modifiers.Tick(deltaTime);
-        Entity.Slots.skills.TickCooldown(deltaTime);
+        Entity.Slots.Skills.TickCooldown(deltaTime);
 
         // 4) 死亡门：周期跳伤致死当帧冻结余下管线（尸体站桩）。
         //    清边沿防"复活瞬间残留的跳/攻击请求"；每帧清幂等，成本可忽略
@@ -178,8 +179,8 @@ public sealed class EntityBrain : MonoBehaviour
         Entity.Motor.RotateTowards(Commands.MoveDirection, deltaTime);
 
         // 11) 调试采样：位置差反推真实移动速度（一次减法可忽略）
-        DebugVelocity = (transform.position - lastFramePosition) / deltaTime;
-        lastFramePosition = transform.position;
+        DebugVelocity = (transform.position - LastFramePosition) / deltaTime;
+        LastFramePosition = transform.position;
     }
 
     /// <summary>主动作消费：攻击边沿（含瞄准射击翻译与连段留置）+ 技能边沿（双闸门）。
@@ -192,11 +193,11 @@ public sealed class EntityBrain : MonoBehaviour
             if (Capability.CanAct())
             {
                 WeaponComboGraph comboGraph = Entity.Slots.CurrentComboGraph;
-                if (Commands.AimActive && comboGraph != null && comboGraph.hasShoot)
+                if (Commands.AimActive && comboGraph != null && comboGraph.HasShoot)
                 {
                     // 连招翻译（需求示例：瞄准+射击）：瞄准电平 + 攻击边沿 → 射击变体（单发段）。
                     // 翻译在消费点不在输入源——AI 输入源自动同享规则，不漂移
-                    AttackState.BeginSingle(comboGraph.shootEntry);
+                    AttackState.BeginSingle(comboGraph.ShootEntry);
                 }
                 else
                 {
@@ -210,12 +211,12 @@ public sealed class EntityBrain : MonoBehaviour
         // ---- 技能：双闸门（冷却 + 信心方向）都过才结算；执行效果后置（本轮只扣闸门，Debug 可见）----
         if (Commands.SkillSlotQueued != 0)
         {
-            EnumSkillKind kind = (EnumSkillKind)Commands.SkillSlotQueued;   // ±1 = 冠冕/潮汐，枚举值即方向因子
-            if (Capability.CanAct() && Entity.Slots.skills.CanCast(kind, Entity.Vitals.Faith))
+            EnumSkillType kind = (EnumSkillType)Commands.SkillSlotQueued;   // ±1 = 冠冕/潮汐，枚举值即方向因子
+            if (Capability.CanAct() && Entity.Slots.Skills.CanCast(kind, Entity.Vitals.Faith))
             {
-                Entity.Slots.skills.TryGet(kind, out SkillSO skill, out _);
-                Entity.Slots.skills.Consume(kind, Entity.Vitals.Faith);   // 写回 Data：冷却 + 信心增量（位方向 × 幅度）
-                Debug.Log($"{name} 释放 {skill.displayName}（冷却 {skill.cooldown:0.0}s 已启动、信心 {(int)kind * skill.faithDelta:+#;-#;0}，执行效果后置）");
+                Entity.Slots.Skills.TryGet(kind, out SkillSO skill, out _);
+                Entity.Slots.Skills.Consume(kind, Entity.Vitals.Faith);   // 写回 Data：冷却 + 信心增量（位方向 × 幅度）
+                Debug.Log($"{name} 释放 {skill.Name}（冷却 {skill.Cooldown:0.0}s 已启动、信心 {(int)kind * skill.Faith:+#;-#;0}，执行效果后置）");
             }
             Commands.SkillSlotQueued = 0;   // 无缓冲
         }
@@ -251,10 +252,10 @@ public sealed class EntityBrain : MonoBehaviour
         float swingMultiplier = 1f;
         if (Entity.Tags.Has((ulong)EnumEntityTag.Swinging))
         {
-            WeaponSO mainWeapon = Entity.Slots.weapon.main;
-            if (mainWeapon != null && mainWeapon.swingDamageTakenMultiplier > 0f)
+            var mainWeapon = Entity.Slots.Weapons.MainHand;
+            if (mainWeapon != null && mainWeapon.SwingDamageTakenMultiplier > 0f)
             {
-                swingMultiplier = mainWeapon.swingDamageTakenMultiplier;
+                swingMultiplier = mainWeapon.SwingDamageTakenMultiplier;
             }
         }
 

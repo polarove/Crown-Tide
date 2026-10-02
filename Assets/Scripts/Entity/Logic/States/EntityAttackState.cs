@@ -20,12 +20,12 @@ public sealed class EntityAttackState : EntityState
     /// <summary>内置默认段（出招表缺失/空表时的兜底节奏）</summary>
     private static readonly ComboEntry FistEntry = new()
     {
-        displayName = "双拳",
-        windup = 0.15f,
-        hit = 0.1f,
-        recovery = 0.3f,
-        nextEntry = -1,
-        cancelWindow = 0f,
+        Name = "双拳",
+        Windup = 0.15f,
+        Hit = 0.1f,
+        Recovery = 0.3f,
+        NextEntry = -1,
+        CancelWindow = 0f,
     };
 
     private WeaponComboGraph comboGraph;        // 起手时刻的出招表快照（避免攻击中途换装串段）
@@ -52,7 +52,7 @@ public sealed class EntityAttackState : EntityState
     public void BeginCombo()
     {
         comboGraph = Entity.Slots.CurrentComboGraph;
-        entries = comboGraph != null ? comboGraph.comboEntries : null;
+        entries = comboGraph != null ? comboGraph.ComboEntries : null;
         if (entries == null || entries.Length == 0)
         {
             isSingle = true;
@@ -77,15 +77,15 @@ public sealed class EntityAttackState : EntityState
         {
             ComboEntry entry = CurrentEntry;
             float scale = DurationScale;
-            if (elapsed < entry.windup * scale)
+            if (elapsed < entry.Windup * scale)
             {
-                return $"{entry.displayName} 前摇";
+                return $"{entry.Name} 前摇";
             }
-            if (elapsed < (entry.windup + entry.hit) * scale)
+            if (elapsed < (entry.Windup + entry.Hit) * scale)
             {
-                return $"{entry.displayName} 命中";
+                return $"{entry.Name} 命中";
             }
-            return $"{entry.displayName} 后摇";
+            return $"{entry.Name} 后摇";
         }
     }
 
@@ -95,8 +95,8 @@ public sealed class EntityAttackState : EntityState
     {
         get
         {
-            WeaponSO mainWeapon = Entity.Slots.weapon.main;
-            float weaponSpeed = mainWeapon != null ? mainWeapon.attackSpeed : 1f;
+            WeaponSO mainWeapon = Entity.Slots.Weapons.MainHand;
+            float weaponSpeed = mainWeapon != null ? mainWeapon.AttackSpeed : 1f;
             float modifierSpeed = Entity.Brain.Modifiers.GetStatMultiplier(EnumStatType.AttackSpeed);
             return 1f / Mathf.Max(0.05f, weaponSpeed * modifierSpeed);
         }
@@ -116,7 +116,7 @@ public sealed class EntityAttackState : EntityState
     public override void HandleTransitions()
     {
         ComboEntry entry = CurrentEntry;
-        float total = (entry.windup + entry.hit + entry.recovery) * DurationScale;
+        float total = (entry.Windup + entry.Hit + entry.Recovery) * DurationScale;
         if (elapsed >= total)
         {
             // 打完当前段且未续段：清空 Action 层（层回到未激活 = 无动作）
@@ -135,12 +135,12 @@ public sealed class EntityAttackState : EntityState
         {
             ComboEntry entry = CurrentEntry;
             float scale = DurationScale;
-            float recoveryStart = (entry.windup + entry.hit) * scale;
-            float window = entry.cancelWindow > 0f ? entry.cancelWindow * scale : entry.recovery * scale;
-            if (elapsed >= recoveryStart && elapsed <= recoveryStart + window && entry.nextEntry >= 0
-                && entry.nextEntry < entries.Length)
+            float recoveryStart = (entry.Windup + entry.Hit) * scale;
+            float window = entry.CancelWindow > 0f ? entry.CancelWindow * scale : entry.Recovery * scale;
+            if (elapsed >= recoveryStart && elapsed <= recoveryStart + window && entry.NextEntry >= 0
+                && entry.NextEntry < entries.Length)
             {
-                comboIndex = entry.nextEntry;
+                comboIndex = entry.NextEntry;
                 elapsed = 0f;   // 续段从新段的前摇开始（Swinging 保持挂载——状态未离开）
             }
             Entity.Commands.AttackQueued = false;

@@ -9,18 +9,18 @@ using UnityEngine;
 public sealed class ArmorSlot
 {
     [Tooltip("当前护甲（ArmorSO）；空 = 未穿戴")]
-    public ArmorSO head = new();
+    public ArmorSO Head = new();
 
     [Tooltip("当前护甲（ArmorSO）；空 = 未穿戴")]
-    public ArmorSO chest = new();
+    public ArmorSO Chest = new();
 
     [Tooltip("当前护甲（ArmorSO）；空 = 未穿戴")]
-    public ArmorSO legs = new();
+    public ArmorSO Legs = new();
 
     [Tooltip("当前护甲（ArmorSO）；空 = 未穿戴")]
-    public ArmorSO feet = new();
+    public ArmorSO Feet = new();
 
-    public ArmorSO[] Armors => new ArmorSO[] { head, chest, legs, feet };
+    public ArmorSO[] Armors => new ArmorSO[] { Head, Chest, Legs, Feet };
 
     /// <summary>装备（直接替换；换装 = 一次 Equip 一次 Unequip，事件由 SlotContainer 发）</summary>
     public bool Equip(ArmorSO newArmor)

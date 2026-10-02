@@ -6,17 +6,17 @@ using System;
 public sealed class DecisionLeaf<TContext, TIntent> : Decision<TContext, TIntent>
     where TIntent : struct, Enum
 {
-    private readonly Func<TContext, bool> condition;
-    private readonly TIntent intent;
+    private readonly Func<TContext, bool> Condition;
+    private readonly TIntent Intent;
 
     public DecisionLeaf(Func<TContext, bool> condition, TIntent intent)
     {
-        this.condition = condition;
-        this.intent = intent;
+        Condition = condition;
+        Intent = intent;
     }
 
     public override TIntent? Decide(TContext context)
     {
-        return condition(context) ? intent : null;
+        return Condition(context) ? Intent : null;
     }
 }

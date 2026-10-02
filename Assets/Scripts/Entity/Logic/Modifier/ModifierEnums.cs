@@ -8,9 +8,9 @@ using System;
 /// <summary>同一条 Modifier 重复施加时的叠加策略</summary>
 public enum EnumStackPolicy
 {
-    Refresh = 0,   // 刷新时长：重置倒计时（默认）
+    Ignore = 0,        // 忽略：已挂的那条继续跑，本次施加无操作
+    Refresh,   // 刷新时长：重置倒计时（默认）
     Stack,         // 叠加层数：层数 +1 并重置倒计时，满层后回落为刷新时长
-    Ignore,        // 忽略：已挂的那条继续跑，本次施加无操作
 }
 
 /// <summary>Modifier 类别（[Flags] 可并用）：增益/减益 × 作用媒介两个维度。
@@ -24,6 +24,7 @@ public enum EnumModifierCategory
     Poison = 1 << 2,
     Magic = 1 << 3,
     Physical = 1 << 4,
+    Armor = 1 << 5,
     All = Buff | Debuff | Poison | Magic | Physical,
 }
 

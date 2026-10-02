@@ -8,21 +8,21 @@
 /// </summary>
 public sealed class EntityCapabilities
 {
-    private readonly Entity entity;
+    private readonly Entity Entity;
 
     public EntityCapabilities(Entity entity)
     {
-        this.entity = entity;
+        Entity = entity;
     }
 
     /// <summary>能否移动：活着 && 未失控 && 无锁移动声明（攻击/闪避期间）</summary>
     public bool CanMove()
     {
-        if (entity.Vitals.IsDead || IsControlled())
+        if (Entity.Vitals.IsDead || IsControlled())
         {
             return false;
         }
-        EntityState actionState = entity.Brain.Machine.GetActive(EnumStateLayer.Action);
+        EntityState actionState = Entity.Brain.Machine.GetActive(EnumStateLayer.Action);
         return actionState == null || !actionState.LocksMovement;
     }
 
@@ -30,21 +30,21 @@ public sealed class EntityCapabilities
     /// 连段续击不查这里（续段是 AttackState 内部事务，不走起手门禁）</summary>
     public bool CanAct()
     {
-        return !entity.Vitals.IsDead && !IsControlled()
-            && entity.Brain.Machine.GetActive(EnumStateLayer.Action) == null;
+        return !Entity.Vitals.IsDead && !IsControlled()
+            && Entity.Brain.Machine.GetActive(EnumStateLayer.Action) == null;
     }
 
     /// <summary>能否跳跃：活着 && 未失控 && 在地面（冲量类效果都要过 CC 门禁，
     /// 否则会绕过状态机的层压制——旧管线的教训）</summary>
     public bool CanJump()
     {
-        return !entity.Vitals.IsDead && !IsControlled() && entity.Motor.IsGrounded;
+        return !Entity.Vitals.IsDead && !IsControlled() && Entity.Motor.IsGrounded;
     }
 
     /// <summary>是否处于失控（CrowdControl 层有活跃状态 = 被 CC 压制中）</summary>
     public bool IsControlled()
     {
-        return entity.Brain.Machine.GetActive(EnumStateLayer.CrowdControl) != null;
+        return Entity.Brain.Machine.GetActive(EnumStateLayer.CrowdControl) != null;
     }
 
     /// <summary>控制免疫（霸体）：施加失控类 Modifier 时的仲裁入口。
@@ -52,6 +52,6 @@ public sealed class EntityCapabilities
     /// 注意：免疫 ≠ 解控——只拦"新施加的控制成分"，不清已生效的</summary>
     public bool HasControlImmunity()
     {
-        return entity.Brain.Machine.HasSuperArmor();
+        return Entity.Brain.Machine.HasSuperArmor();
     }
 }

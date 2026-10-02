@@ -11,12 +11,12 @@ public class CharacterConfigSO : ScriptableObject
 {
     [Header("体质")]
     [Tooltip("最大生命值（CharacterVitals.CurrentHp 的上限与初始值，活属性）")]
-    public float maxHealth = 100f;
+    public float MaxHealth = 100f;
 
     [Tooltip("信心区间上界：信心值 ∈ [-此值, +此值]（对称钟摆，初始居中 0）。冠冕技能涨、潮汐技能降，贴边锁向防单一依赖")]
-    public int faithCapacity = 67;
+    public int FaithCapacity = 67;
 
     [Header("手部容量")]
     [Tooltip("双手总容量：主手 + 副手武器的 handCost 之和不得超过它。5 = 双匕首(2+2)可行、巨斧(5)单持可行但无法双持、圣剑(9)装不上")]
-    public int weaponCapacity = 5;
+    public int WeaponCapacity = 5;
 }

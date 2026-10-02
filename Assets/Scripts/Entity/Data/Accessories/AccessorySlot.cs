@@ -10,16 +10,16 @@ using UnityEngine;
 public sealed class AccessorySlot
 {
     [Tooltip("饰品位（AccessorySO；空位 = 未佩戴）")]
-    public AccessorySO[] accessories = new AccessorySO[6];
+    public AccessorySO[] Accessories = new AccessorySO[6];
 
     /// <summary>找第一个空位装入；满员返回 false（调用侧提示）</summary>
     public bool Equip(AccessorySO accessory)
     {
-        for (int i = 0; i < accessories.Length; i++)
+        for (int i = 0; i < Accessories.Length; i++)
         {
-            if (accessories[i] == null)
+            if (Accessories[i] == null)
             {
-                accessories[i] = accessory;
+                Accessories[i] = accessory;
                 return true;
             }
         }
@@ -29,12 +29,12 @@ public sealed class AccessorySlot
     /// <summary>卸下指定位（越界/空位返回 null）</summary>
     public AccessorySO Unequip(int index)
     {
-        if (index < 0 || index >= accessories.Length)
+        if (index < 0 || index >= Accessories.Length)
         {
             return null;
         }
-        AccessorySO removed = accessories[index];
-        accessories[index] = null;
+        AccessorySO removed = Accessories[index];
+        Accessories[index] = null;
         return removed;
     }
 }

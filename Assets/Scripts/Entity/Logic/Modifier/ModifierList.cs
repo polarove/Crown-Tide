@@ -19,11 +19,11 @@ public sealed class ModifierList
     /// <summary>一条活跃中的效果实例（SO 模板 + 运行时状态）</summary>
     private sealed class ActiveModifier
     {
-        public ModifierData data;
-        public bool controlActive;         // 施加时刻定死：data.hasControl 且当时未处于霸体
-        public float remainingTime;        // data.duration <= 0 时不倒计时（永久，仅驱散可清）
-        public int stacks = 1;
-        public float periodicAccumulator;  // 周期累加器（跳伤用）
+        public ModifierEffect Effect;
+        public bool ControlActive;         // 施加时刻定死：data.hasControl 且当时未处于霸体
+        public float RemainingTime;        // data.duration <= 0 时不倒计时（永久，仅驱散可清）
+        public int Stacks = 1;
+        public float PeriodicAccumulator;  // 周期累加器（跳伤用）
     }
 
     private readonly Entity entity;
@@ -39,7 +39,7 @@ public sealed class ModifierList
     /// 返回 = 调用后该效果是否活跃在列表中（已在挂、按叠加策略处理，也算 true）。
     /// 注意霸体只拦控制成分：条目照挂、数值/周期照常——判"这发有没有把失控钉住"请查 HasControlActive。
     /// null data 早退 false（调用侧的调试槽忘拖资产已先行警告，这里静默防炸）</summary>
-    public bool Apply(ModifierData modifier)
+    public bool Apply(ModifierEffect modifier)
     {
         if (modifier == null)
         {
@@ -50,31 +50,31 @@ public sealed class ModifierList
         for (int i = 0; i < active.Count; i++)
         {
             ActiveModifier existing = active[i];
-            if (!ReferenceEquals(existing.data, modifier))
+            if (!ReferenceEquals(existing.Effect, modifier))
             {
                 continue;
             }
 
-            switch (modifier.stackPolicy)
+            switch (modifier.StackPolicy)
             {
                 case EnumStackPolicy.Refresh:
-                {
-                    existing.remainingTime = modifier.duration;
-                    break;
-                }
-                case EnumStackPolicy.Stack:
-                {
-                    if (existing.stacks < modifier.maxStacks)
                     {
-                        existing.stacks++;
+                        existing.RemainingTime = modifier.Duration;
+                        break;
                     }
-                    existing.remainingTime = modifier.duration;   // 满层后再施加 = 回落为刷新时长
-                    break;
-                }
+                case EnumStackPolicy.Stack:
+                    {
+                        if (existing.Stacks < modifier.MaxStacks)
+                        {
+                            existing.Stacks++;
+                        }
+                        existing.RemainingTime = modifier.Duration;   // 满层后再施加 = 回落为刷新时长
+                        break;
+                    }
                 case EnumStackPolicy.Ignore:
-                {
-                    break;   // 已挂的那条继续跑，本次无操作
-                }
+                    {
+                        break;   // 已挂的那条继续跑，本次无操作
+                    }
             }
             SyncProjection();
             return true;
@@ -82,11 +82,11 @@ public sealed class ModifierList
 
         active.Add(new ActiveModifier
         {
-            data = modifier,
-            controlActive = modifier.hasControl && !entity.Brain.Capability.HasControlImmunity(),   // 施加时刻定死
-            remainingTime = modifier.duration,
-            stacks = 1,
-            periodicAccumulator = 0f,
+            Effect = modifier,
+            ControlActive = modifier.HasControl && !entity.Brain.Capability.HasControlImmunity(),   // 施加时刻定死
+            RemainingTime = modifier.Duration,
+            Stacks = 1,
+            PeriodicAccumulator = 0f,
         });
         SyncProjection();
         return true;
@@ -99,10 +99,10 @@ public sealed class ModifierList
         for (int i = active.Count - 1; i >= 0; i--)
         {
             ActiveModifier modifier = active[i];
-            if (modifier.data.duration > 0f)
+            if (modifier.Effect.Duration > 0f)
             {
-                modifier.remainingTime -= deltaTime;
-                if (modifier.remainingTime <= 0f)
+                modifier.RemainingTime -= deltaTime;
+                if (modifier.RemainingTime <= 0f)
                 {
                     active.RemoveAt(i);   // 倒序遍历中移除，保序
                     continue;
@@ -110,13 +110,13 @@ public sealed class ModifierList
             }
 
             // 周期跳伤：interval <= 0 视为无周期（防配置事故把 while 变死循环）
-            if (modifier.data.hasPeriodic && modifier.data.tickInterval > 0f)
+            if (modifier.Effect.HasPeriodic && modifier.Effect.TickInterval > 0f)
             {
-                modifier.periodicAccumulator += deltaTime;
-                while (modifier.periodicAccumulator >= modifier.data.tickInterval)
+                modifier.PeriodicAccumulator += deltaTime;
+                while (modifier.PeriodicAccumulator >= modifier.Effect.TickInterval)
                 {
-                    modifier.periodicAccumulator -= modifier.data.tickInterval;
-                    entity.Brain.TakeDamage(modifier.data.damagePerTick * modifier.stacks);
+                    modifier.PeriodicAccumulator -= modifier.Effect.TickInterval;
+                    entity.Brain.TakeDamage(modifier.Effect.DamagePerTick * modifier.Stacks);
                 }
             }
         }
@@ -130,14 +130,14 @@ public sealed class ModifierList
         for (int i = 0; i < active.Count; i++)
         {
             ActiveModifier modifier = active[i];
-            StatModifierEntry[] modifiers = modifier.data.statModifiers;
+            StatModifierEntry[] modifiers = modifier.Effect.StatModifiers;
             for (int m = 0; m < modifiers.Length; m++)
             {
                 if (modifiers[m].stat != type)
                 {
                     continue;
                 }
-                for (int s = 0; s < modifier.stacks; s++)
+                for (int s = 0; s < modifier.Stacks; s++)
                 {
                     result *= modifiers[m].multiplier;
                 }
@@ -153,7 +153,7 @@ public sealed class ModifierList
         {
             for (int i = 0; i < active.Count; i++)
             {
-                if (active[i].controlActive)
+                if (active[i].ControlActive)
                 {
                     return true;
                 }
@@ -169,7 +169,7 @@ public sealed class ModifierList
         int removed = 0;
         for (int i = active.Count - 1; i >= 0; i--)
         {
-            if ((active[i].data.category & filter) != 0)
+            if ((active[i].Effect.Category & filter) != 0)
             {
                 active.RemoveAt(i);
                 removed++;
@@ -180,11 +180,11 @@ public sealed class ModifierList
     }
 
     /// <summary>指定效果是否活跃（SO 引用比较；命中入口判"已在挂"用）</summary>
-    public bool IsHolding(ModifierData modifier)
+    public bool IsHolding(ModifierEffect modifier)
     {
         for (int i = 0; i < active.Count; i++)
         {
-            if (ReferenceEquals(active[i].data, modifier))
+            if (ReferenceEquals(active[i].Effect, modifier))
             {
                 return true;
             }
@@ -208,13 +208,13 @@ public sealed class ModifierList
             {
                 sb.Append('｜');
             }
-            sb.Append(modifier.data.displayName);
-            if (modifier.stacks > 1)
+            sb.Append(modifier.Effect.Name);
+            if (modifier.Stacks > 1)
             {
-                sb.Append('×').Append(modifier.stacks);
+                sb.Append('×').Append(modifier.Stacks);
             }
-            sb.Append(modifier.data.duration > 0f
-                ? " " + modifier.remainingTime.ToString("0.0") + "s"
+            sb.Append(modifier.Effect.Duration > 0f
+                ? " " + modifier.RemainingTime.ToString("0.0") + "s"
                 : " 永久");
         }
         return sb.ToString();
@@ -228,7 +228,7 @@ public sealed class ModifierList
         for (int i = 0; i < active.Count; i++)
         {
             ActiveModifier modifier = active[i];
-            if (modifier.controlActive && (best == null || modifier.data.controlPriority > best.data.controlPriority))
+            if (modifier.ControlActive && (best == null || modifier.Effect.ControlPriority > best.Effect.ControlPriority))
             {
                 best = modifier;
             }
@@ -238,7 +238,7 @@ public sealed class ModifierList
         ulong desired = 0ul;
         for (int i = 0; i < active.Count; i++)
         {
-            desired |= (ulong)active[i].data.grantedTag;
+            desired |= (ulong)active[i].Effect.GrantedTag;
         }
         if (best != null)
         {
@@ -254,7 +254,7 @@ public sealed class ModifierList
             return;
         }
         EntityStateMachine machine = entity.Brain.Machine;
-        EntityState target = entity.Brain.ResolveControlState(best.data.controlKind);
+        EntityState target = entity.Brain.ResolveControlState(best.Effect.ControlKind);
         EntityState current = machine.GetActive(EnumStateLayer.CrowdControl);
         if (current == target)
         {

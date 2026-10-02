@@ -20,7 +20,7 @@ public sealed class CharacterVitals : MonoBehaviour
     public event Action<CharacterVitals> Died;
 
     /// <summary>角色配置（Entity.Awake 注入；空 = 用内置默认值，防御未配置的实体）</summary>
-    private CharacterConfigSO config;
+    private CharacterConfigSO Config;
 
     /// <summary>信心值资源（Initialize 构造；技能闸门之一，见 SkillSlot）</summary>
     public SkillResource Faith { get; private set; }
@@ -32,16 +32,16 @@ public sealed class CharacterVitals : MonoBehaviour
     public bool IsDead { get; private set; }
 
     /// <summary>最大生命（config 活值直读；未配置默认 100——Play 模式改资产即时生效，不回填当前值）</summary>
-    public float MaxHp => config != null ? config.maxHealth : 100f;
+    public float MaxHp => Config != null ? Config.MaxHealth : float.MaxValue;
 
     /// <summary>信心区间上界（config 活值直读；未配置默认 67；区间 = [-上界, +上界] 对称）</summary>
-    public int FaithCapacity => config != null ? config.faithCapacity : 67;
+    public int FaithCapacity => Config != null ? Config.FaithCapacity : 67;
 
     /// <summary>初始化（Entity.Awake → Brain.Bootstrap 调用一次）：满血、信心居中 0。
     /// 重复调用（测试/复活预留）会重置 HP 与信心值并清除死亡态</summary>
     public void Initialize(CharacterConfigSO characterConfig)
     {
-        config = characterConfig;
+        Config = characterConfig;
         CurrentHp = MaxHp;
         Faith = new SkillResource(this, 0);   // 居中：开局冠冕/潮汐都放得出（钟摆两侧等距）
         IsDead = false;

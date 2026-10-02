@@ -17,7 +17,7 @@ using UnityEngine;
 [RequireComponent(typeof(EntityBrain))]
 [RequireComponent(typeof(EntityMotor))]
 [RequireComponent(typeof(CharacterVitals))]
-[RequireComponent(typeof(EntitySlotContainer))]
+[RequireComponent(typeof(CharacterSlotContainer))]
 public sealed class Entity : MonoBehaviour
 {
     [Header("角色数据")]
@@ -25,7 +25,7 @@ public sealed class Entity : MonoBehaviour
     public CharacterConfigSO config;
 
     [Tooltip("实体标识（多人预留：将来映射 NetworkObject/网络 id；本地无用）")]
-    public int entityId;
+    public int EntityId;
 
     [Tooltip("是否玩家操控（需求钦定唯一职责：决定 Brain 绑定 PlayerInputSource 还是 AITreeInputSource；"
         + "只管谁来下指令，不管指令能不能执行——那是 Capability 的事）")]
@@ -35,7 +35,7 @@ public sealed class Entity : MonoBehaviour
     public EntityBrain Brain { get; private set; }
     public EntityMotor Motor { get; private set; }
     public CharacterVitals Vitals { get; private set; }
-    public EntitySlotContainer Slots { get; private set; }
+    public CharacterSlotContainer Slots { get; private set; }
 
     /// <summary>命名标签集合（状态直写 + Modifier 投影，见 CharacterTagSet）</summary>
     public CharacterTagSet Tags { get; } = new CharacterTagSet();
@@ -71,7 +71,7 @@ public sealed class Entity : MonoBehaviour
         Brain = GetComponent<EntityBrain>();
         Motor = GetComponent<EntityMotor>();
         Vitals = GetComponent<CharacterVitals>();
-        Slots = GetComponent<EntitySlotContainer>();
+        Slots = GetComponent<CharacterSlotContainer>();
         Brain.Bootstrap(this);
     }
 }

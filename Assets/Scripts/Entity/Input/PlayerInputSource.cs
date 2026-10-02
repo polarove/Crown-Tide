@@ -1,3 +1,4 @@
+using Assets.Scripts.Entity.Data.Skill;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -38,11 +39,11 @@ public sealed class PlayerInputSource : MonoBehaviour, IInputSource
 
     [Header("调试效果（拖演示 SO：右键 Create → Crown Tide → 修饰效果）")]
     [Tooltip("F3：对自身施加（眩晕演示——失控/打断/自动解除全链路）")]
-    public ModifierData debugStunModifier;
+    public ModifierEffect DebugStunModifier;
     [Tooltip("F4：对自身施加（急速演示——移速乘数）")]
-    public ModifierData debugHasteModifier;
+    public ModifierEffect DebugHasteModifier;
     [Tooltip("F5：对自身施加（创伤演示——周期跳伤/死亡占位）")]
-    public ModifierData debugWoundModifier;
+    public ModifierEffect DebugWoundModifier;
 
     private Entity entity;               // 宿主（GatherCommands 缓存一次）
     private PlayerInput playerInput;
@@ -246,40 +247,40 @@ public sealed class PlayerInputSource : MonoBehaviour, IInputSource
 
         if (keyboard.f3Key.wasPressedThisFrame)
         {
-            ApplyDebugModifier(host, debugStunModifier, "F3 眩晕");
+            ApplyDebugModifier(host, DebugStunModifier, "F3 眩晕");
         }
         if (keyboard.f4Key.wasPressedThisFrame)
         {
-            ApplyDebugModifier(host, debugHasteModifier, "F4 急速");
+            ApplyDebugModifier(host, DebugHasteModifier, "F4 急速");
         }
         if (keyboard.f5Key.wasPressedThisFrame)
         {
-            ApplyDebugModifier(host, debugWoundModifier, "F5 创伤");
+            ApplyDebugModifier(host, DebugWoundModifier, "F5 创伤");
         }
         if (keyboard.f6Key.wasPressedThisFrame)
         {
             host.Brain.Modifiers.Dispel(EnumModifierCategory.All);
         }
-        if (keyboard.f7Key.wasPressedThisFrame && debugStunModifier != null)
+        if (keyboard.f7Key.wasPressedThisFrame && DebugStunModifier != null)
         {
             // 敌人侧回归：场景内其他实体走同一套列表/投影（FindObjectsByType 只在调试分支跑，不上玩法路径）
             foreach (Entity other in FindObjectsByType<Entity>())
             {
                 if (other != host)
                 {
-                    other.Brain.Modifiers.Apply(debugStunModifier);
+                    other.Brain.Modifiers.Apply(DebugStunModifier);
                 }
             }
         }
         if (keyboard.f9Key.wasPressedThisFrame)
         {
             // 技能链路冒烟：请求冠冕技能（Brain 消费：CanAct + 双闸门校验 + 写回冷却/信心增量）
-            host.Commands.SkillSlotQueued = (int)EnumSkillKind.Crown;
+            host.Commands.SkillSlotQueued = (int)EnumSkillType.Crown;
         }
         if (keyboard.f11Key.wasPressedThisFrame)
         {
             // 信心钟摆降向：请求潮汐技能（faithDelta<0 降信心；贴边 -67 后 CanApply 锁向拒绝）
-            host.Commands.SkillSlotQueued = (int)EnumSkillKind.Tide;
+            host.Commands.SkillSlotQueued = (int)EnumSkillType.Tide;
         }
         if (keyboard.f10Key.wasPressedThisFrame)
         {
@@ -290,7 +291,7 @@ public sealed class PlayerInputSource : MonoBehaviour, IInputSource
     }
 
     /// <summary>调试施加：空槽一次性警告后跳过（列表对 null 也早退，这里负责把缺配置讲清楚）</summary>
-    private void ApplyDebugModifier(Entity host, ModifierData modifier, string keyName)
+    private void ApplyDebugModifier(Entity host, ModifierEffect modifier, string keyName)
     {
         if (modifier == null)
         {

@@ -1,3 +1,4 @@
+using Assets.Scripts.Entity.Data.Skill;
 using UnityEngine;
 
 /// <summary>
@@ -15,15 +16,15 @@ public class SkillSO : ScriptableObject
 {
     [Header("基础")]
     [Tooltip("显示名（调试面板/将来战斗 UI 用）")]
-    public string displayName = "新技能";
+    public string Name = "新技能";
 
     [Tooltip("技能种类：决定占用 SkillSlot 的固定位（冠冕/潮汐）")]
-    public EnumSkillKind kind = EnumSkillKind.Crown;
+    public EnumSkillType Kind = EnumSkillType.Crown;
 
     [Header("闸门")]
     [Tooltip("信心幅度（配正数）：实际增量 = 技能位方向 × 此值（冠冕位 +、潮汐位 -），钳在 ±faithCapacity——方向由位钦定不会配错")]
-    public int faithDelta = 20;
+    public int Faith = 20;
 
     [Tooltip("冷却秒数（SkillSlot 记冷却剩余，释放成功后开始倒数；0 = 无冷却）")]
-    public float cooldown = 5f;
+    public float Cooldown = 5f;
 }

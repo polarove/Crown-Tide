@@ -13,20 +13,20 @@ using UnityEngine;
 /// </summary>
 public sealed class SkillResource
 {
-    private readonly CharacterVitals owner;
+    private readonly CharacterVitals Owner;
 
     /// <summary>当前值（[-Capacity, +Capacity]）</summary>
     public int Current { get; private set; }
 
     /// <summary>区间上界（读角色配置活值——Play 模式改资产即时生效）</summary>
-    public int Max => owner != null ? owner.FaithCapacity : 0;
+    public int Max => Owner != null ? Owner.FaithCapacity : 0;
 
     /// <summary>区间下界（对称 = -上界）</summary>
     public int Min => -Max;
 
     public SkillResource(CharacterVitals owner, int initial)
     {
-        this.owner = owner;
+        Owner = owner;
         Current = initial;
     }
 
@@ -50,7 +50,7 @@ public sealed class SkillResource
     /// 调用侧需先 CanApply 校验方向语义（未校验时增量照加，只是贴边无效）</summary>
     public void Update(int delta)
     {
-        if (owner != null)
+        if (Owner != null)
         {
             Current = Mathf.Clamp(Current + delta, Min, Max);
         }

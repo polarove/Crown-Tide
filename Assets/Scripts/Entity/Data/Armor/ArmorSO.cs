@@ -1,3 +1,4 @@
+using Assets.Scripts.Entity.Data.Armor;
 using UnityEngine;
 
 /// <summary>
@@ -9,8 +10,11 @@ using UnityEngine;
 public class ArmorSO : ScriptableObject
 {
     [Tooltip("显示名（调试面板/将来战斗 UI 用）")]
-    public string displayName = "新护甲";
+    public string Name = "新护甲";
 
-    [Tooltip("预留：防御修正等参数（本轮无消费者，只占数据形状）")]
-    public float defenseMultiplier = 1f;
+    [Tooltip("护甲值")]
+    public float Value = 1f;
+
+    [Tooltip("护甲部位：决定挂在哪个 ArmorSlot")]
+    public EnumArmorPart Part = EnumArmorPart.Head;
 }

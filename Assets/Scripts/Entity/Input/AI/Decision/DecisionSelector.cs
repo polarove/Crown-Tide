@@ -7,18 +7,18 @@ using System;
 public sealed class DecisionSelector<TContext, TIntent> : Decision<TContext, TIntent>
     where TIntent : struct, Enum
 {
-    private readonly Decision<TContext, TIntent>[] children;
+    private readonly Decision<TContext, TIntent>[] Children;
 
     public DecisionSelector(params Decision<TContext, TIntent>[] children)
     {
-        this.children = children;
+        Children = children;
     }
 
     public override TIntent? Decide(TContext context)
     {
-        for (int i = 0; i < children.Length; i++)
+        for (int i = 0; i < Children.Length; i++)
         {
-            TIntent? result = children[i].Decide(context);
+            TIntent? result = Children[i].Decide(context);
             if (result.HasValue)
             {
                 return result;

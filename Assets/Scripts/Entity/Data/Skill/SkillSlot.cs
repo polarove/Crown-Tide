@@ -1,3 +1,4 @@
+using Assets.Scripts.Entity.Data.Skill;
 using System;
 using UnityEngine;
 
@@ -14,43 +15,43 @@ using UnityEngine;
 public sealed class SkillSlot
 {
     [Tooltip("冠冕技能（SkillSO；空 = 该位未装配）")]
-    public SkillSO crownSkill;
+    public SkillSO Crown;
 
     [Tooltip("潮汐技能（SkillSO；空 = 该位未装配）")]
-    public SkillSO tideSkill;
+    public SkillSO Tide;
 
     [Tooltip("冠冕位冷却剩余秒数（运行时，调试可见；释放成功时置为 cooldown）")]
-    public float crownCooldownRemaining;
+    public float CrownCooldownRemaining;
 
     [Tooltip("潮汐位冷却剩余秒数（运行时，调试可见）")]
-    public float tideCooldownRemaining;
+    public float TideCooldownRemaining;
 
     /// <summary>冷却步进（每帧由 Brain 调用；两处共享一个实现）</summary>
     public void TickCooldown(float deltaTime)
     {
-        if (crownCooldownRemaining > 0f)
+        if (CrownCooldownRemaining > 0f)
         {
-            crownCooldownRemaining = Mathf.Max(0f, crownCooldownRemaining - deltaTime);
+            CrownCooldownRemaining = Mathf.Max(0f, CrownCooldownRemaining - deltaTime);
         }
-        if (tideCooldownRemaining > 0f)
+        if (TideCooldownRemaining > 0f)
         {
-            tideCooldownRemaining = Mathf.Max(0f, tideCooldownRemaining - deltaTime);
+            TideCooldownRemaining = Mathf.Max(0f, TideCooldownRemaining - deltaTime);
         }
     }
 
     /// <summary>按种类取技能与冷却槽（冠冕/潮汐两位是数据形状钦定的，不做开放数组）</summary>
-    public bool TryGet(EnumSkillKind kind, out SkillSO skill, out float cooldownRemaining)
+    public bool TryGet(EnumSkillType kind, out SkillSO skill, out float cooldownRemaining)
     {
-        bool isCrown = kind == EnumSkillKind.Crown;
-        skill = isCrown ? crownSkill : tideSkill;
-        cooldownRemaining = isCrown ? crownCooldownRemaining : tideCooldownRemaining;
+        bool isCrown = kind == EnumSkillType.Crown;
+        skill = isCrown ? Crown : Tide;
+        cooldownRemaining = isCrown ? CrownCooldownRemaining : TideCooldownRemaining;
         return skill != null;
     }
 
     /// <summary>释放闸门校验（不扣减）：技能已装配 && 冷却结束 && 信心方向闸门放行。
     /// 信心增量 = (int)kind × faithDelta（枚举值即方向因子：冠冕 +1 涨、潮汐 -1 降，
     /// 需求钦定）——方向由技能位钦定，SO 只配正数幅度，不可能配错方向</summary>
-    public bool CanCast(EnumSkillKind kind, SkillResource faith)
+    public bool CanCast(EnumSkillType kind, SkillResource faith)
     {
         if (!TryGet(kind, out SkillSO skill, out float cooldownRemaining))
         {
@@ -60,25 +61,25 @@ public sealed class SkillSlot
         {
             return false;
         }
-        return faith != null && faith.CanApply((int)kind * skill.faithDelta);
+        return faith != null && faith.CanApply((int)kind * skill.Faith);
     }
 
     /// <summary>释放成功结算（Logic 层确认起手后调用）：写冷却 + 写信心增量（写回 Data）。
-    /// 增量 = (int)kind × faithDelta（位方向 × 幅度），钳在 ±faithCapacity</summary>
-    public void Consume(EnumSkillKind kind, SkillResource faith)
+    /// 增量 = (int)Kind × Faith（位方向 × 幅度），钳在 ±faithCapacity</summary>
+    public void Consume(EnumSkillType kind, SkillResource faith)
     {
         if (!TryGet(kind, out SkillSO skill, out _))
         {
             return;
         }
-        if (kind == EnumSkillKind.Crown)
+        if (kind == EnumSkillType.Crown)
         {
-            crownCooldownRemaining = skill.cooldown;
+            CrownCooldownRemaining = skill.Cooldown;
         }
         else
         {
-            tideCooldownRemaining = skill.cooldown;
+            TideCooldownRemaining = skill.Cooldown;
         }
-        faith?.Update((int)kind * skill.faithDelta);
+        faith?.Update((int)kind * skill.Faith);
     }
 }

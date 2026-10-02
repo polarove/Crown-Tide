@@ -21,40 +21,40 @@ public sealed class AITreeInputSource : MonoBehaviour, IInputSource
 {
     [Header("感知")]
     [Tooltip("测试用目标（通常拖玩家实体进来）；之后由正式感知系统赋值")]
-    public Transform target;
+    public Transform Target;
 
     [Header("决策")]
     [Tooltip("决策树评估间隔（秒）：越小反应越快、开销越大；0 = 每帧评估")]
-    public float decisionInterval = 0.2f;
+    public float DecisionInterval = 0.2f;
 
     /// <summary>宿主实体（懒取一次）</summary>
-    private Entity entity;
+    private Entity Entity;
 
     /// <summary>决策树（本输入源的"脑子"：默认两条规则——有目标追击、兜底待机；
     /// 换 AI = 换树，不改框架）</summary>
-    private DecisionSelector<Entity, EnumAIIntent> decisionTree;
+    private DecisionSelector<Entity, EnumAIIntent> DecisionTree;
 
-    private EnumAIIntent intent = EnumAIIntent.Idle;   // 当前意图（决策低频刷新）
-    private float decisionTimer;                        // 决策定时累积器
-    private bool bound;                                 // Brain 绑定标志
+    private EnumAIIntent Intent = EnumAIIntent.Idle;   // 当前意图（决策低频刷新）
+    private float DecisionTimer;                        // 决策定时累积器
+    private bool Bound;                                 // Brain 绑定标志
 
     /// <summary>Brain 绑定/解绑（BindInputSource 调用）。解绑 = GatherCommands 早退（沉默站桩）</summary>
     public void SetActive(bool active)
     {
-        bound = active;
+        Bound = active;
     }
 
     /// <summary>每帧采集：决策定时 → 意图翻译成指令（追击 = 朝目标方向，与玩家推杆同构）</summary>
     public void GatherCommands(CommandBuffer commands)
     {
-        if (!bound)
+        if (!Bound)
         {
             return;
         }
-        if (entity == null)
+        if (Entity == null)
         {
-            entity = GetComponentInParent<Entity>();
-            if (entity == null)
+            Entity = GetComponentInParent<Entity>();
+            if (Entity == null)
             {
                 return;
             }
@@ -65,11 +65,11 @@ public sealed class AITreeInputSource : MonoBehaviour, IInputSource
 
         // 意图翻译（每帧）：决策低频产出意图，指令连续刷新——玩家推杆与 AI 追击在此汇成同一种指令。
         // 无 else：帧首已把 MoveDirection 重置为零——输入源沉默 = 站桩
-        if (intent == EnumAIIntent.Chase && target != null)
+        if (Intent == EnumAIIntent.Chase && Target != null)
         {
             // 朝目标的方向（投影到水平面），限幅 1；方向同时供 RotateTowards 转身。
             // 演示用直线追击，无绕障/寻路
-            Vector3 toTarget = target.position - transform.position;
+            Vector3 toTarget = Target.position - transform.position;
             toTarget.y = 0f;
             commands.MoveDirection = Vector3.ClampMagnitude(toTarget, 1f);
         }
@@ -79,8 +79,8 @@ public sealed class AITreeInputSource : MonoBehaviour, IInputSource
     /// 高优先级在前，最后一条恒真兜底（Selector = 优先级选择）</summary>
     private void BuildDecisionTree()
     {
-        decisionTree = new DecisionSelector<Entity, EnumAIIntent>(
-            new DecisionLeaf<Entity, EnumAIIntent>(ctx => target != null, EnumAIIntent.Chase),
+        DecisionTree = new DecisionSelector<Entity, EnumAIIntent>(
+            new DecisionLeaf<Entity, EnumAIIntent>(ctx => Target != null, EnumAIIntent.Chase),
             new DecisionLeaf<Entity, EnumAIIntent>(ctx => true, EnumAIIntent.Idle));
     }
 
@@ -88,19 +88,19 @@ public sealed class AITreeInputSource : MonoBehaviour, IInputSource
     /// 累积器计时（网络时间纪律），间隔 <= 0 = 每帧评估</summary>
     private void TryRunDecision(float deltaTime)
     {
-        if (decisionInterval > 0f)
+        if (DecisionInterval > 0f)
         {
-            decisionTimer -= deltaTime;
-            if (decisionTimer > 0f)
+            DecisionTimer -= deltaTime;
+            if (DecisionTimer > 0f)
             {
                 return;
             }
-            decisionTimer = decisionInterval;
+            DecisionTimer = DecisionInterval;
         }
-        EnumAIIntent? decided = decisionTree.Decide(entity);
+        EnumAIIntent? decided = DecisionTree.Decide(Entity);
         if (decided.HasValue)
         {
-            intent = decided.Value;
+            Intent = decided.Value;
         }
     }
 }

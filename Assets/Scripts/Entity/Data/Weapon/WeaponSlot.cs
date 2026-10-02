@@ -1,3 +1,4 @@
+using Assets.Scripts.Entity.Data;
 using System;
 using UnityEngine;
 
@@ -15,47 +16,47 @@ using UnityEngine;
 public sealed class WeaponSlot
 {
     [Tooltip("主手武器（双持时出招表以主手为准）；空 = 空手")]
-    public WeaponSO main;
+    public WeaponSO MainHand;
 
     [Tooltip("副手武器；空 = 单持")]
-    public WeaponSO secondary;
+    public WeaponSO OffHand;
 
     /// <summary>是否双持（副手有武器即双持；能装进来说明容量判定已过）</summary>
-    public bool IsDualWield => main != null && secondary != null;
+    public bool IsDualWield => MainHand != null && OffHand != null;
 
     /// <summary>当前持用的出招表。unarmedComboGraph 由 SlotContainer 传入（空手兜底表，可空）。
     /// 武器没配表（配置缺失）同样回退空手表——攻击状态永远有节奏可用，不因缺数据断链</summary>
     public WeaponComboGraph ResolveComboGraph(WeaponComboGraph unarmedComboGraph)
     {
-        if (main == null)
+        if (MainHand == null && OffHand == null)
         {
             return unarmedComboGraph;
         }
-        if (IsDualWield && main.comboGraphDual != null)
+        if (IsDualWield && MainHand.ComboGraphDual != null)
         {
-            return main.comboGraphDual;
+            return MainHand.ComboGraphDual;
         }
-        return main.comboGraphSingle != null ? main.comboGraphSingle : unarmedComboGraph;
+        return MainHand.ComboGraphSingle != null ? MainHand.ComboGraphSingle : unarmedComboGraph;
     }
 
     /// <summary>装备校验（不落库）：weapon 装到 hand 是否合法。
     /// weaponCapacity 由角色配置传入（Entity → SlotContainer → 这里）。
     /// 同手位已有武器 = 先卸再装（SameHandOccupied）；容量按"另一把的 cost + 这把的 cost"算</summary>
-    public EnumEquipResult CanEquip(WeaponSO weapon, EnumHandSlot hand, int weaponCapacity)
+    public EnumEquipResult CanEquip(WeaponSO weapon, EnumHandSlotType hand, int weaponCapacity)
     {
         if (weapon == null)
         {
             return EnumEquipResult.InvalidWeapon;
         }
 
-        WeaponSO occupied = hand == EnumHandSlot.Main ? main : secondary;
+        WeaponSO occupied = hand == EnumHandSlotType.MainHand ? MainHand : OffHand;
         if (occupied != null)
         {
             return EnumEquipResult.SameHandOccupied;
         }
 
-        WeaponSO other = hand == EnumHandSlot.Main ? secondary : main;
-        int totalCost = weapon.handCost + (other != null ? other.handCost : 0);
+        WeaponSO other = hand == EnumHandSlotType.MainHand ? OffHand : MainHand;
+        int totalCost = weapon.Cost + (other != null ? other.Cost : 0);
         if (totalCost > weaponCapacity)
         {
             return EnumEquipResult.CapacityExceeded;

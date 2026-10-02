@@ -6,20 +6,20 @@ using System;
 public sealed class DecisionBranch<TContext, TIntent> : Decision<TContext, TIntent>
     where TIntent : struct, Enum
 {
-    private readonly Func<TContext, bool> condition;
-    private readonly Decision<TContext, TIntent> trueBranch;
-    private readonly Decision<TContext, TIntent> falseBranch;
+    private readonly Func<TContext, bool> Condition;
+    private readonly Decision<TContext, TIntent> TrueBranch;
+    private readonly Decision<TContext, TIntent> FalseBranch;
 
     public DecisionBranch(Func<TContext, bool> condition,
         Decision<TContext, TIntent> trueBranch, Decision<TContext, TIntent> falseBranch)
     {
-        this.condition = condition;
-        this.trueBranch = trueBranch;
-        this.falseBranch = falseBranch;
+        Condition = condition;
+        TrueBranch = trueBranch;
+        FalseBranch = falseBranch;
     }
 
     public override TIntent? Decide(TContext context)
     {
-        return condition(context) ? trueBranch.Decide(context) : falseBranch.Decide(context);
+        return Condition(context) ? TrueBranch.Decide(context) : FalseBranch.Decide(context);
     }
 }
