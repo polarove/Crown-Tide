@@ -1,3 +1,4 @@
+using Assets.Scripts.Entity.Data.Armor;
 using System;
 using UnityEngine;
 
@@ -9,42 +10,52 @@ using UnityEngine;
 public sealed class ArmorSlot
 {
     [Tooltip("当前护甲（ArmorSO）；空 = 未穿戴")]
-    public ArmorSO Head = new();
+    public ArmorSO Head;
 
     [Tooltip("当前护甲（ArmorSO）；空 = 未穿戴")]
-    public ArmorSO Chest = new();
+    public ArmorSO Chest;
 
     [Tooltip("当前护甲（ArmorSO）；空 = 未穿戴")]
-    public ArmorSO Legs = new();
+    public ArmorSO Legs;
 
     [Tooltip("当前护甲（ArmorSO）；空 = 未穿戴")]
-    public ArmorSO Feet = new();
+    public ArmorSO Feet;
 
-    public ArmorSO[] Armors => new ArmorSO[] { Head, Chest, Legs, Feet };
-
-    /// <summary>装备（直接替换；换装 = 一次 Equip 一次 Unequip，事件由 SlotContainer 发）</summary>
-    public bool Equip(ArmorSO newArmor)
+    // 按 EnumArmorPart 的顺序返回字段引用（不是副本）
+    private ArmorSO Get(EnumArmorPart part) => part switch
     {
-        for (int i = 0; i < Armors.Length; i++)
+        EnumArmorPart.Head => Head,
+        EnumArmorPart.Chest => Chest,
+        EnumArmorPart.Legs => Legs,
+        EnumArmorPart.Feet => Feet,
+        _ => null,
+    };
+
+    private void Set(EnumArmorPart part, ArmorSO value)
+    {
+        switch (part)
         {
-            if (Armors[i] == null)
-            {
-                Armors[i] = newArmor;
-                return true;
-            }
+            case EnumArmorPart.Head: Head = value; break;
+            case EnumArmorPart.Chest: Chest = value; break;
+            case EnumArmorPart.Legs: Legs = value; break;
+            case EnumArmorPart.Feet: Feet = value; break;
         }
-        return false;
     }
 
-    /// <summary>卸下（返回卸掉的护甲；未穿戴返回 null）</summary>
-    public ArmorSO Unequip(int index)
+    /// <summary>装备（直接替换）。返回被替换掉的旧护甲（可能为 null）。</summary>
+    public ArmorSO Equip(ArmorSO newArmor)
     {
-        if (index >= 0 && index < Armors.Length)
-        {
-            ArmorSO removed = Armors[index];
-            Armors[index] = null;
-            return removed;
-        }
-        return null;
+        if (newArmor == null) return null;
+        var old = Get(newArmor.Part);
+        Set(newArmor.Part, newArmor);
+        return old;
+    }
+
+    /// <summary>卸下。返回卸掉的护甲；未穿戴返回 null。</summary>
+    public ArmorSO Unequip(EnumArmorPart part)
+    {
+        var removed = Get(part);
+        Set(part, null);
+        return removed;
     }
 }
