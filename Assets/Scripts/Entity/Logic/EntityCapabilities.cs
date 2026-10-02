@@ -10,6 +10,10 @@ public sealed class EntityCapabilities
 {
     private readonly Entity Entity;
 
+    /// <summary>宿主状态机（唯一解引用点）：Brain 未装配时用空条件运算符收敛。
+    /// 收在属性里而不是每处写法不同，是让 null 分析有单点可依</summary>
+    private EntityStateMachine? Machine => Entity.Brain?.StateMachine;
+
     public EntityCapabilities(Entity entity)
     {
         Entity = entity;
@@ -22,7 +26,7 @@ public sealed class EntityCapabilities
         {
             return false;
         }
-        EntityState actionState = Entity.Brain.Machine.GetActive(EnumStateLayer.Action);
+        EntityState? actionState = Machine?.GetActive(EnumStateLayer.Action);
         return actionState == null || !actionState.LocksMovement;
     }
 
@@ -31,7 +35,7 @@ public sealed class EntityCapabilities
     public bool CanAct()
     {
         return !Entity.Vitals.IsDead && !IsControlled()
-            && Entity.Brain.Machine.GetActive(EnumStateLayer.Action) == null;
+            && Machine?.GetActive(EnumStateLayer.Action) == null;
     }
 
     /// <summary>能否跳跃：活着 && 未失控 && 在地面（冲量类效果都要过 CC 门禁，
@@ -44,7 +48,7 @@ public sealed class EntityCapabilities
     /// <summary>是否处于失控（CrowdControl 层有活跃状态 = 被 CC 压制中）</summary>
     public bool IsControlled()
     {
-        return Entity.Brain.Machine.GetActive(EnumStateLayer.CrowdControl) != null;
+        return Machine?.GetActive(EnumStateLayer.CrowdControl) != null;
     }
 
     /// <summary>控制免疫（霸体）：施加失控类 Modifier 时的仲裁入口。
@@ -52,6 +56,6 @@ public sealed class EntityCapabilities
     /// 注意：免疫 ≠ 解控——只拦"新施加的控制成分"，不清已生效的</summary>
     public bool HasControlImmunity()
     {
-        return Entity.Brain.Machine.HasSuperArmor();
+        return Machine?.HasSuperArmor() == true;
     }
 }

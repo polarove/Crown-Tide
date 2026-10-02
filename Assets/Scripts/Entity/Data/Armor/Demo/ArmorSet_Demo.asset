@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 16bef508ab11d154dba5d8c7432bb171, type: 3}
+  m_Name: ArmorSet_Demo
+  m_EditorClassIdentifier: Entity.Runtime::ArmorSetSO
+  Name: "\u6F14\u793A\u5957\u88C5"
+  Bonuses:
+  - PieceCount: 2
+    Modifier: {fileID: 11400000, guid: 2513226fdfc18a8408ebfba7d47c18c4, type: 2}
+  - PieceCount: 4
+    Modifier: {fileID: 11400000, guid: 2991d9ab507db60429b6e5a381e082df, type: 2}

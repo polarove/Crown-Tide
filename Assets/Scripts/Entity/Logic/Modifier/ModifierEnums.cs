@@ -24,7 +24,7 @@ public enum EnumModifierCategory
     Poison = 1 << 2,
     Magic = 1 << 3,
     Physical = 1 << 4,
-    Armor = 1 << 5,
+    ArmorSet = 1 << 5,
     All = Buff | Debuff | Poison | Magic | Physical,
 }
 

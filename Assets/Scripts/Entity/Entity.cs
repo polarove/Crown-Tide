@@ -3,7 +3,7 @@ using UnityEngine;
 /// <summary>
 /// 实体（组合根，七层架构的唯一角色类——需求钦定：所有角色统一叫 Entity，不再有
 /// Player/NPC/Character 子类。玩家与敌人的差异 = IsPlayerControlled（只决定输入源绑定）
-/// + 槽位内容 + 决策树 + config，不来自继承）。
+/// + 槽位内容 + 决策树 + Config，不来自继承）。
 /// 本类只做三件事：
 /// 1. RequireComponent 声明组件组合（组合优于继承）；
 /// 2. 唯一 Awake：缓存组件 → Brain.Bootstrap（单 Awake 规则——同物体多组件 Awake 顺序
@@ -22,7 +22,7 @@ public sealed class Entity : MonoBehaviour
 {
     [Header("角色数据")]
     [Tooltip("角色配置（体质/信心上限/手部容量；空 = 各组件内置默认值）")]
-    public CharacterConfigSO config;
+    public CharacterConfigSO? Config;
 
     [Tooltip("实体标识（多人预留：将来映射 NetworkObject/网络 id；本地无用）")]
     public int EntityId;
@@ -32,10 +32,12 @@ public sealed class Entity : MonoBehaviour
     [SerializeField] private bool isPlayerControlled;
 
     // ---- 组件缓存（唯一 Awake 取一次；不在玩法路径反复 GetComponent）----
-    public EntityBrain Brain { get; private set; }
-    public EntityMotor Motor { get; private set; }
-    public CharacterVitals Vitals { get; private set; }
-    public CharacterSlotContainer Slots { get; private set; }
+    // 这批由 Awake（单入口，先于任何玩法调用）注入，故按非空不变量声明；
+    // `= null!` 是断言不是赋值（零运行时开销）——避免每个读点都写 `?.`
+    public EntityBrain Brain { get; private set; } = null!;
+    public EntityMotor Motor { get; private set; } = null!;
+    public CharacterVitals Vitals { get; private set; } = null!;
+    public CharacterSlotContainer Slots { get; private set; } = null!;
 
     /// <summary>命名标签集合（状态直写 + Modifier 投影，见 CharacterTagSet）</summary>
     public CharacterTagSet Tags { get; } = new CharacterTagSet();

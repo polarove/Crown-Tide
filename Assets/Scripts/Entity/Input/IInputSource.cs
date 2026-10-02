@@ -7,5 +7,7 @@
 /// </summary>
 public interface IInputSource
 {
-    void GatherCommands(CommandBuffer? commands);
+    /// <summary>每帧采集指令写入缓冲。commands 由 Brain 生命周期保证非空（Bootstrap 先于任何采集），
+    /// 故此处声明非空——实现里无需再判空</summary>
+    void GatherCommands(CommandBuffer commands);
 }

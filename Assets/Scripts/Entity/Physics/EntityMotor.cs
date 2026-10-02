@@ -17,33 +17,34 @@ public sealed class EntityMotor : MonoBehaviour
 {
     [Header("移动")]
     [Tooltip("移动速度，单位：米/秒（MoveSpeed 乘法链的基础值）")]
-    public float walkSpeed = 5f;
-    [Tooltip("加速倍率：加速时的速度 = walkSpeed × 此值，调走路速度后加速自动跟着变")]
-    public float sprintMultiplier = 1.6f;
+    public float WalkSpeed = 5f;
+    [Tooltip("加速倍率：加速时的速度 = WalkSpeed × 此值，调走路速度后加速自动跟着变")]
+    public float SprintMultiplier = 1.6f;
     [Tooltip("转向移动方向的平滑速度，数值越大转身越快")]
-    public float turnSpeed = 10f;
+    public float TurnSpeed = 10f;
 
     [Header("跳跃")]
     [Tooltip("跳跃能达到的最大高度，单位：米（JumpPower 乘法链的基础值）")]
-    public float jumpHeight = 1.2f;
+    public float JumpHeight = 1.2f;
 
     [Header("重力")]
     [Tooltip("重力加速度，负数表示方向向下；绝对值越大上升下落越快（-20 约为真实重力的两倍，手感更干脆）")]
-    public float gravity = -20f;
+    public float Gravity = -20f;
     [Tooltip("接近跳跃顶点时的重力倍率，越小滞空感越明显（0.5 = 顶点附近重力减半）")]
-    public float apexHangGravityMultiplier = 0.5f;
+    public float ApexHangGravityMultiplier = 0.5f;
     [Tooltip("竖直速度绝对值小于此值（米/秒）时视为接近顶点，进入滞空")]
-    public float apexHangVerticalSpeedThreshold = 1.5f;
+    public float ApexHangVerticalSpeedThreshold = 1.5f;
     [Tooltip("下落阶段的重力倍率，越大下落越快、落地越干脆")]
-    public float fallingGravityMultiplier = 1.5f;
+    public float FallingGravityMultiplier = 1.5f;
 
     [Header("地面检测")]
     [Tooltip("从角色中心向下射线的额外长度，胶囊半高 + 此值以内碰到地面就算站在地上")]
-    public float groundCheckDistance = 0.25f;
+    public float GroundCheckDistance = 0.25f;
     [Tooltip("哪些层参与地面检测，默认所有层")]
-    public LayerMask groundMask = ~0;
+    public LayerMask GroundMask = ~0;
 
-    private CharacterController controller;
+    // Initialize() 注入（Brain.Bootstrap 调用）；CharacterController 由 RequireComponent 保证存在
+    private CharacterController Controller = null!;
 
     /// <summary>是否站在地面/平台上（Brain 管线每帧 GroundCheck 刷新）</summary>
     public bool IsGrounded { get; private set; }
@@ -54,14 +55,14 @@ public sealed class EntityMotor : MonoBehaviour
     /// <summary>注入 CharacterController（Brain.Bootstrap 调用一次）</summary>
     public void Initialize()
     {
-        controller = GetComponent<CharacterController>();
+        Controller = GetComponent<CharacterController>();
     }
 
     /// <summary>从角色中心向下射线，判断是否站在地面/平台上（贴地钳 -2 防累积）</summary>
     public void GroundCheck()
     {
         IsGrounded = Physics.Raycast(transform.position, Vector3.down,
-            controller.height / 2f + groundCheckDistance, groundMask,
+            Controller.height / 2f + GroundCheckDistance, GroundMask,
             QueryTriggerInteraction.Ignore);
 
         if (IsGrounded && VerticalVelocity < 0f)
@@ -74,7 +75,7 @@ public sealed class EntityMotor : MonoBehaviour
     /// 状态与效果乘数由调用侧（ApplyLocomotion）算好传入，本方法只做移动</summary>
     public void MoveHorizontal(float speed, Vector3 direction)
     {
-        controller.Move(Time.deltaTime * speed * direction);
+        Controller.Move(Time.deltaTime * speed * direction);
     }
 
     /// <summary>
@@ -88,17 +89,17 @@ public sealed class EntityMotor : MonoBehaviour
         float currentGravityMultiplier = 1f;
         if (!IsGrounded)
         {
-            if (Mathf.Abs(VerticalVelocity) < apexHangVerticalSpeedThreshold)
+            if (Mathf.Abs(VerticalVelocity) < ApexHangVerticalSpeedThreshold)
             {
-                currentGravityMultiplier = apexHangGravityMultiplier;
+                currentGravityMultiplier = ApexHangGravityMultiplier;
             }
             else if (VerticalVelocity < 0f)
             {
-                currentGravityMultiplier = fallingGravityMultiplier;
+                currentGravityMultiplier = FallingGravityMultiplier;
             }
         }
-        VerticalVelocity += gravity * currentGravityMultiplier * deltaTime;
-        controller.Move(VerticalVelocity * deltaTime * Vector3.up);
+        VerticalVelocity += Gravity * currentGravityMultiplier * deltaTime;
+        Controller.Move(VerticalVelocity * deltaTime * Vector3.up);
     }
 
     /// <summary>有移动方向时平滑转向（方向为零不转，保留原朝向）</summary>
@@ -107,7 +108,7 @@ public sealed class EntityMotor : MonoBehaviour
         if (direction.sqrMagnitude > 0.01f)
         {
             Quaternion targetRotation = Quaternion.LookRotation(direction);
-            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, turnSpeed * deltaTime);
+            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, TurnSpeed * deltaTime);
         }
     }
 }

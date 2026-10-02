@@ -14,16 +14,18 @@ using UnityEngine;
 public sealed class CharacterVitals : MonoBehaviour
 {
     /// <summary>HP 变更事件（扣血/回血后触发；参数 = 本体，读 CurrentHp 取新值）</summary>
-    public event Action<CharacterVitals> HpChanged;
+    public event Action<CharacterVitals>? HpChanged;
 
     /// <summary>死亡事件（幂等：一实体只触发一次）</summary>
-    public event Action<CharacterVitals> Died;
+    public event Action<CharacterVitals>? Died;
 
-    /// <summary>角色配置（Entity.Awake 注入；空 = 用内置默认值，防御未配置的实体）</summary>
-    private CharacterConfigSO Config;
+    /// <summary>角色配置（Entity.Awake 注入；空 = 用内置默认值，防御未配置的实体）——
+    /// 空是**合法状态**（MaxHp/FaithCapacity 都有兜底），故可空</summary>
+    private CharacterConfigSO? Config;
 
-    /// <summary>信心值资源（Initialize 构造；技能闸门之一，见 SkillSlot）</summary>
-    public SkillResource Faith { get; private set; }
+    /// <summary>信心值资源（Initialize 构造；技能闸门之一，见 SkillSlot）。
+    /// Initialize 之前为 null（未装配），故可空——调用方用 ?. 或先判空</summary>
+    public SkillResource? Faith { get; private set; }
 
     /// <summary>当前生命（写口唯一：ApplyDamage/ApplyHeal）</summary>
     public float CurrentHp { get; private set; }
@@ -38,8 +40,9 @@ public sealed class CharacterVitals : MonoBehaviour
     public int FaithCapacity => Config != null ? Config.FaithCapacity : 67;
 
     /// <summary>初始化（Entity.Awake → Brain.Bootstrap 调用一次）：满血、信心居中 0。
+    /// characterConfig 可空（未配角色配置）：MaxHp/FaithCapacity 走内置兜底。
     /// 重复调用（测试/复活预留）会重置 HP 与信心值并清除死亡态</summary>
-    public void Initialize(CharacterConfigSO characterConfig)
+    public void Initialize(CharacterConfigSO? characterConfig)
     {
         Config = characterConfig;
         CurrentHp = MaxHp;

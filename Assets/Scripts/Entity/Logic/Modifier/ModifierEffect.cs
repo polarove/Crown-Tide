@@ -5,10 +5,10 @@ using UnityEngine;
 [Serializable]
 public struct StatModifierEntry
 {
-    public EnumStatType stat;
+    public EnumStatType Stat;
 
     [Tooltip("乘数：1.5 = 提升 50%；0.5 = 减半。Stack 条目的层数 = 该乘数自乘层数次（1.5×3 层 ≈ 3.4）")]
-    public float multiplier;
+    public float Multiplier;
 }
 
 /// <summary>

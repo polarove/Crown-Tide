@@ -20,19 +20,19 @@ public enum EnumAIIntent
 public sealed class AITreeInputSource : MonoBehaviour, IInputSource
 {
     [Header("感知")]
-    [Tooltip("测试用目标（通常拖玩家实体进来）；之后由正式感知系统赋值")]
-    public Transform Target;
+    [Tooltip("测试用目标（通常拖玩家实体进来）；之后由正式感知系统赋值。空 = 无目标 → 待机")]
+    public Transform? Target;
 
     [Header("决策")]
     [Tooltip("决策树评估间隔（秒）：越小反应越快、开销越大；0 = 每帧评估")]
     public float DecisionInterval = 0.2f;
 
     /// <summary>宿主实体（懒取一次）</summary>
-    private Entity Entity;
+    private Entity Entity = null!;
 
     /// <summary>决策树（本输入源的"脑子"：默认两条规则——有目标追击、兜底待机；
     /// 换 AI = 换树，不改框架）</summary>
-    private DecisionSelector<Entity, EnumAIIntent> DecisionTree;
+    private DecisionSelector<Entity, EnumAIIntent> DecisionTree = null!;
 
     private EnumAIIntent Intent = EnumAIIntent.Idle;   // 当前意图（决策低频刷新）
     private float DecisionTimer;                        // 决策定时累积器

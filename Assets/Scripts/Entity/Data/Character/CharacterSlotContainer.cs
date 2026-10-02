@@ -1,4 +1,5 @@
 using Assets.Scripts.Entity.Data;
+using Assets.Scripts.Entity.Data.Armor;
 using System;
 using UnityEngine;
 
@@ -12,8 +13,9 @@ using UnityEngine;
 public sealed class CharacterSlotContainer : MonoBehaviour
 {
     [Header("空手兜底")]
-    [Tooltip("空手出招表（两手皆空 / 武器缺表时的回退表）；默认是双拳")]
-    public WeaponComboGraph UnarmedComboGraph = new();
+    [Tooltip("空手出招表（两手皆空 / 武器缺表时的回退表）；空 = AttackState 用内置默认节奏（双拳）。"
+        + "注意：本字段是 ScriptableObject 引用，不能在此 new——运行时用 ScriptableObject.CreateInstance 或拖资产")]
+    public WeaponComboGraph? UnarmedComboGraph;
 
     [Header("槽位（运行时可由 Logic/调试代码写；Inspector 预配初始装备）")]
     [Tooltip("武器槽：主/副手 + 容量判定 + 出招表解析")]
@@ -28,13 +30,20 @@ public sealed class CharacterSlotContainer : MonoBehaviour
     [Tooltip("饰品槽：占位持有（Data 层不处理逻辑）")]
     public AccessorySlot Accessories = new();
 
-    public int WeaponCapacityConsumed => Weapons.MainHand.Cost + Weapons.OffHand.Cost;
+    /// <summary>护甲套装引擎（Logic 层纯 C#；EntityBrain.Bootstrap 注入——Data 层唯一的跨层引用）。
+    /// 装备/卸下护甲后由本类调它的 Sync，保证「装备写入点 ⇒ 套装重算」永远成对。
+    /// 空是**合法状态**（Bootstrap 之前、测试夹具、未挂 Brain 的纯数据用法），故可空</summary>
+    public ArmorSetBonusList? ArmorSetBonuses { get; set; }
+
+    /// <summary>当前武器占用的手部容量（空手 = 0；两把都可空，故用 ?.）</summary>
+    public int WeaponCapacityConsumed => (Weapons.MainHand?.Cost ?? 0) + (Weapons.OffHand?.Cost ?? 0);
 
     /// <summary>装备变更事件（表现层/UI 订阅；装备/卸下成功后触发，含初始装配不触发）</summary>
-    public event Action EquipmentChanged;
+    public event Action? EquipmentChanged;
 
-    /// <summary>当前持用的出招表（双持取主手 dual 表，回退链见 WeaponSlot.ResolveComboGraph）</summary>
-    public WeaponComboGraph CurrentComboGraph => Weapons.ResolveComboGraph(UnarmedComboGraph);
+    /// <summary>当前持用的出招表（双持取主手 dual 表，回退链见 WeaponSlot.ResolveComboGraph）。
+    /// 空 = 空手且没配兜底表 → 消费方按"缺表"兜底（AttackState 内置默认节奏 / 移速修正 ×1）</summary>
+    public WeaponComboGraph? CurrentComboGraph => Weapons.ResolveComboGraph(UnarmedComboGraph);
 
     /// <summary>装备武器到指定手（容量校验在内）。成功才落库并发事件；失败原样返回结果码</summary>
     public EnumEquipResult TryEquipWeapon(WeaponSO newWeapon, EnumHandSlotType hand, int weaponCapacity)
@@ -58,9 +67,9 @@ public sealed class CharacterSlotContainer : MonoBehaviour
     }
 
     /// <summary>卸下指定手武器（返回卸掉的武器；空手返回 null）</summary>
-    public WeaponSO UnequipWeapon(EnumHandSlotType hand)
+    public WeaponSO? UnequipWeapon(EnumHandSlotType hand)
     {
-        WeaponSO removed = hand == EnumHandSlotType.MainHand ? Weapons.MainHand : Weapons.OffHand;
+        WeaponSO? removed = hand == EnumHandSlotType.MainHand ? Weapons.MainHand : Weapons.OffHand;
         if (hand == EnumHandSlotType.MainHand)
         {
             Weapons.MainHand = null;
@@ -71,6 +80,35 @@ public sealed class CharacterSlotContainer : MonoBehaviour
         }
         if (removed != null)
         {
+            EquipmentChanged?.Invoke();
+        }
+        return removed;
+    }
+
+    /// <summary>装备护甲（按 ArmorSO.Part 自动落槽，同部位直接替换旧件）。
+    /// 护甲没有容量闸门（区别于武器），唯一失败是空引用——复用 InvalidWeapon 语义。
+    /// 成功后：重算套装档位 → 触发 EquipmentChanged（顺序：先状态后事件）</summary>
+    public EnumEquipResult TryEquipArmor(ArmorSO newArmor)
+    {
+        if (newArmor == null)
+        {
+            return EnumEquipResult.InvalidWeapon;
+        }
+
+        Armor.Equip(newArmor);
+        ArmorSetBonuses?.Sync();
+        EquipmentChanged?.Invoke();
+        return EnumEquipResult.Success;
+    }
+
+    /// <summary>卸下护甲（返回卸掉的件；未穿返回 null）。
+    /// 卸下成功才重算套装并触发 EquipmentChanged</summary>
+    public ArmorSO? UnequipArmor(EnumArmorPart part)
+    {
+        ArmorSO? removed = Armor.Unequip(part);
+        if (removed != null)
+        {
+            ArmorSetBonuses?.Sync();
             EquipmentChanged?.Invoke();
         }
         return removed;

@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 890a268d6c483c64aac1e7cbf23b23b1, type: 3}
+  m_Name: Modifier_DemoSet4
+  m_EditorClassIdentifier: Entity.Runtime::ModifierEffect
+  Name: "\u6F14\u793A\u5957\u88C5\xB7\u56DB\u4EF6\uFF08\u79FB\u901F\u518D +5%\u3001\u53D7\u4F24 -20%\uFF09"
+  Category: 33
+  Duration: 0
+  StackPolicy: 1
+  MaxStacks: 3
+  HasControl: 0
+  ControlPriority: 0
+  ControlKind: 1
+  StatModifiers:
+  - Stat: 0
+    Multiplier: 1.05
+  - Stat: 4
+    Multiplier: 0.8
+  HasPeriodic: 0
+  TickInterval: 1
+  DamagePerTick: 5
+  GrantedTag: 0

@@ -19,7 +19,7 @@ public sealed class CameraRig : MonoBehaviour
 {
     [Header("目标")]
     [Tooltip("要跟随的实体（通常是玩家 Entity）；空 = 本组件不工作")]
-    public Entity FollowEntity;
+    public Entity? FollowEntity;
 
     [Header("第三人称")]
     [Tooltip("第三人称注视点在实体（胶囊中心）上方的高度，单位：米")]
@@ -56,7 +56,7 @@ public sealed class CameraRig : MonoBehaviour
 
     [Header("旋转")]
     [Tooltip("输入动作资源，拖入 Assets/Input/PlayerControls.inputactions")]
-    public InputActionAsset InputActionAsset;
+    public InputActionAsset? InputActionAsset;
     [Tooltip("手柄右摇杆旋转视角的速度，单位：度/秒（推满摇杆时每秒转的角度）")]
     public float GamepadLookRotationSpeed = 150f;
     [Tooltip("鼠标灵敏度：鼠标每移动 1 像素旋转的角度，单位：度/像素")]
@@ -79,10 +79,11 @@ public sealed class CameraRig : MonoBehaviour
     [Tooltip("游玩时锁定并隐藏鼠标指针，防止指针碰到屏幕边缘后转不动")]
     public bool LockAndHideCursor = true;
 
-    private InputAction GamepadLookAction;          // 右摇杆（速率语义）
-    private InputAction MouseLookAction;            // 鼠标移动（位移语义）
-    private InputAction SwitchShoulderAction;
-    private InputAction ToggleViewModeAction;
+    // Awake 里 FindAction 注入；空 = 资产没配齐（OnEnable 会 NRE，属配置错误早暴露）
+    private InputAction GamepadLookAction = null!;          // 右摇杆（速率语义）
+    private InputAction MouseLookAction = null!;            // 鼠标移动（位移语义）
+    private InputAction SwitchShoulderAction = null!;
+    private InputAction ToggleViewModeAction = null!;
 
     private float YawRotationAngle = 0f;            // 水平旋转角（绕 Y 轴），不受限制
     private float PitchRotationAngle = 20f;         // 俯仰角，正值向下看，负值向上看
@@ -91,17 +92,25 @@ public sealed class CameraRig : MonoBehaviour
     private float BaseFieldOfView;                  // 初始 FOV（奔跑加速的基准）
     private bool IsFirstPersonMode;
     private float FirstPersonBlendFactor;           // 0 = 第三人称，1 = 第一人称
-    private Renderer[] EntityMeshRenderers;         // 第一人称显隐（表现层自持对象，只读数据不改）
+    private Renderer[] EntityMeshRenderers = null!;   // 第一人称显隐（首次切换时 ??= 取，表现层自持对象，只读数据不改）
 
     private void Awake()
     {
         // 相机是表现层独立装置（不在 Entity 组件族内），自取输入动作不参与实体的单 Awake 规则
+        if (InputActionAsset == null)
+        {
+            // 配置事故早暴露：没拖输入资源则整条相机旋转/切换链路都不可用，禁用自身并点明原因
+            Debug.LogError($"{name}：CameraRig.InputActionAsset 未配置，相机旋转与视角切换不可用（已禁用本组件）", this);
+            enabled = false;
+            return;
+        }
+
         GamepadLookAction = InputActionAsset.FindAction("Look", throwIfNotFound: true);
         MouseLookAction = InputActionAsset.FindAction("MouseLook", throwIfNotFound: true);
         SwitchShoulderAction = InputActionAsset.FindAction("SwitchShoulder", throwIfNotFound: true);
         ToggleViewModeAction = InputActionAsset.FindAction("ToggleView", throwIfNotFound: true);
         SwitchShoulderAction.performed += OnSwitchShoulder;
-        Camera cameraComponent = GetComponent<Camera>();
+        Camera? cameraComponent = GetComponent<Camera>();
         BaseFieldOfView = cameraComponent != null ? cameraComponent.fieldOfView : 60f;
     }
 

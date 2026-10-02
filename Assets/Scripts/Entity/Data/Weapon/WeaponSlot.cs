@@ -15,28 +15,30 @@ using UnityEngine;
 [Serializable]
 public sealed class WeaponSlot
 {
+    // null = 空手/单持，是合法状态，故声明为可空（ArmorSlot 同例）
     [Tooltip("主手武器（双持时出招表以主手为准）；空 = 空手")]
-    public WeaponSO MainHand;
+    public WeaponSO? MainHand;
 
     [Tooltip("副手武器；空 = 单持")]
-    public WeaponSO OffHand;
+    public WeaponSO? OffHand;
 
     /// <summary>是否双持（副手有武器即双持；能装进来说明容量判定已过）</summary>
     public bool IsDualWield => MainHand != null && OffHand != null;
 
     /// <summary>当前持用的出招表。unarmedComboGraph 由 SlotContainer 传入（空手兜底表，可空）。
     /// 武器没配表（配置缺失）同样回退空手表——攻击状态永远有节奏可用，不因缺数据断链</summary>
-    public WeaponComboGraph ResolveComboGraph(WeaponComboGraph unarmedComboGraph)
+    public WeaponComboGraph? ResolveComboGraph(WeaponComboGraph? unarmedComboGraph)
     {
         if (MainHand == null && OffHand == null)
         {
             return unarmedComboGraph;
         }
-        if (IsDualWield && MainHand.ComboGraphDual != null)
+        // 非空性用同一处判断收口（不靠 IsDualWield 属性——编译器不做属性内的流分析）
+        if (MainHand != null && OffHand != null && MainHand.ComboGraphDual != null)
         {
             return MainHand.ComboGraphDual;
         }
-        return MainHand.ComboGraphSingle != null ? MainHand.ComboGraphSingle : unarmedComboGraph;
+        return MainHand != null && MainHand.ComboGraphSingle != null ? MainHand.ComboGraphSingle : unarmedComboGraph;
     }
 
     /// <summary>装备校验（不落库）：weapon 装到 hand 是否合法。
@@ -49,13 +51,13 @@ public sealed class WeaponSlot
             return EnumEquipResult.InvalidWeapon;
         }
 
-        WeaponSO occupied = hand == EnumHandSlotType.MainHand ? MainHand : OffHand;
+        WeaponSO? occupied = hand == EnumHandSlotType.MainHand ? MainHand : OffHand;
         if (occupied != null)
         {
             return EnumEquipResult.SameHandOccupied;
         }
 
-        WeaponSO other = hand == EnumHandSlotType.MainHand ? OffHand : MainHand;
+        WeaponSO? other = hand == EnumHandSlotType.MainHand ? OffHand : MainHand;
         int totalCost = weapon.Cost + (other != null ? other.Cost : 0);
         if (totalCost > weaponCapacity)
         {

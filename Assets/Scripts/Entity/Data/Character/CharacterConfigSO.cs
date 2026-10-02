@@ -2,7 +2,7 @@ using UnityEngine;
 
 /// <summary>
 /// 角色配置（ScriptableObject，Data 层）：一类角色的体质与容量参数——Entity 的"出厂设置"。
-/// 多角色 = 多份资产（数值差异全在数据里，代码零改动）；玩家操作不同角色 = 换 config 引用。
+/// 多角色 = 多份资产（数值差异全在数据里，代码零改动）；玩家操作不同角色 = 换 Config 引用。
 /// 全部字段是活值：Logic/Physics 直读属性，Play 模式改资产即时生效。
 /// 武器修正（攻速等）在消费读点与出招表数据组合；Buff/Debuff 的临时乘数在 ModifierList 乘法链。
 /// </summary>

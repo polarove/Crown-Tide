@@ -12,8 +12,8 @@ public class AccessorySO : ScriptableObject
     public string DisplayName = "新饰品";
 
     [Tooltip("佩戴时获得的 buff（将来 Logic 层在装备事件里 Apply；本轮只存引用）")]
-    public ModifierEffect GrantedModifier;
+    public ModifierEffect? GrantedModifier;
 
     [Tooltip("佩戴后绑定的快捷键功能标识（将来 Presentation/外围系统读；空 = 纯属性饰品）")]
-    public string HotkeyAction;
+    public string? HotkeyAction;
 }

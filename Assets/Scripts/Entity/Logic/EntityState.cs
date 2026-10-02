@@ -60,7 +60,7 @@ public abstract class EntityState
     /// </summary>
     protected void ApplyLocomotion(float baseSpeed)
     {
-        EntityState actionState = Machine.GetActive(EnumStateLayer.Action);
+        EntityState? actionState = Machine.GetActive(EnumStateLayer.Action);
         if (actionState != null && actionState.LocksMovement)
         {
             Entity.Commands.MoveDirection = Vector3.zero;
@@ -68,9 +68,12 @@ public abstract class EntityState
             return;
         }
 
-        WeaponComboGraph comboGraph = Entity.Slots.CurrentComboGraph;
+        WeaponComboGraph? comboGraph = Entity.Slots.CurrentComboGraph;
+        // 出招表缺失（空手没配兜底表 / 武器没配表）时移速修正按 ×1 兜底——
+        // 与 AttackState「表缺失 → 内置默认节奏」同一条"缺数据不断链"纪律
+        float comboMultiplier = comboGraph != null ? comboGraph.MoveSpeedMultiplier : 1f;
         float finalSpeed = baseSpeed
-            * comboGraph.MoveSpeedMultiplier
+            * comboMultiplier
             * Entity.Brain.Modifiers.GetStatMultiplier(EnumStatType.MoveSpeed);
         Entity.Motor.MoveHorizontal(finalSpeed, Entity.Commands.MoveDirection);
     }

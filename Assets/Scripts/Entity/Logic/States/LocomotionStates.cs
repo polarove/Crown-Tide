@@ -29,7 +29,7 @@ public sealed class EntityIdleState : EntityState
     public override void Tick(float deltaTime)
     {
         // 方向为零也保持无条件 Move（CharacterController 依赖 Move 做贴地/去穿插）
-        ApplyLocomotion(Entity.Motor.walkSpeed);
+        ApplyLocomotion(Entity.Motor.WalkSpeed);
     }
 }
 
@@ -62,12 +62,12 @@ public sealed class EntityWalkState : EntityState
 
     public override void Tick(float deltaTime)
     {
-        ApplyLocomotion(Entity.Motor.walkSpeed);
+        ApplyLocomotion(Entity.Motor.WalkSpeed);
     }
 }
 
 /// <summary>
-/// 冲刺（Locomotion 层）：加速生效且有移动指令。速度 = walkSpeed × sprintMultiplier。
+/// 冲刺（Locomotion 层）：加速生效且有移动指令。速度 = WalkSpeed × SprintMultiplier。
 /// 空中照常执行（保持跑速）——奔跑中跳跃落地无缝续跑，不经过 Idle/Walk。
 /// Entity.IsSprinting 据本状态活跃判定（CameraRig 读它做奔跑加速的呈现）。
 /// </summary>
@@ -97,6 +97,6 @@ public sealed class EntitySprintState : EntityState
 
     public override void Tick(float deltaTime)
     {
-        ApplyLocomotion(Entity.Motor.walkSpeed * Entity.Motor.sprintMultiplier);
+        ApplyLocomotion(Entity.Motor.WalkSpeed * Entity.Motor.SprintMultiplier);
     }
 }

@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEditor;
 using System.IO;
 using UnityEngine.UIElements;
@@ -28,7 +28,7 @@ sealed class ReadmeEditor : Editor
         }
     }
 
-    static Readme SelectReadme()
+    static Readme? SelectReadme()
     {
         var ids = AssetDatabase.FindAssets("Readme t:Readme");
         if (ids.Length != 1)

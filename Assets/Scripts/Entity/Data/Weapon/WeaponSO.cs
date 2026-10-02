@@ -32,8 +32,8 @@ public class WeaponSO : ScriptableObject
 
     [Header("出招表")]
     [Tooltip("单持出招表：决定步态键/移速修正/普攻连段（无武器时 WeaponSlot 兜底空手默认，见 WeaponSlot.Sheet）")]
-    public WeaponComboGraph ComboGraphSingle;
+    public WeaponComboGraph? ComboGraphSingle;
 
     [Tooltip("双持出招表（以本武器为主手时生效）；空 = 回退用单持表（可双持但动画不分单双的轻武器适用）")]
-    public WeaponComboGraph ComboGraphDual;
+    public WeaponComboGraph? ComboGraphDual;
 }

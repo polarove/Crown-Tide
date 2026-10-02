@@ -28,12 +28,12 @@ public sealed class EntityAttackState : EntityState
         CancelWindow = 0f,
     };
 
-    private WeaponComboGraph comboGraph;        // 起手时刻的出招表快照（避免攻击中途换装串段）
-    private ComboEntry[] entries; // 连段数组快照（comboGraph.comboEntries）
-    private ComboEntry single;    // 单发段快照（BeginSingle 模式 / 兜底段）
-    private bool isSingle;              // true = 单发段模式（不续段）
-    private int comboIndex;             // 当前段下标（连段模式有效）
-    private float elapsed;              // 段内累积时间（+= deltaTime，不用 Time.time 差值——网络时间纪律）
+    private WeaponComboGraph? ComboGraph;   // 起手时刻的出招表快照（避免攻击中途换装串段）；表缺失 = 空
+    private ComboEntry[]? Entries;          // 连段数组快照（ComboGraph.ComboEntries）；空表 = 走兜底单段
+    private ComboEntry Single;    // 单发段快照（BeginSingle 模式 / 兜底段）
+    private bool IsSingle;              // true = 单发段模式（不续段）
+    private int ComboIndex;             // 当前段下标（连段模式有效）
+    private float Elapsed;              // 段内累积时间（+= deltaTime，不用 Time.time 差值——网络时间纪律）
 
     public EntityAttackState(Entity entity, EntityStateMachine machine) : base(entity, machine)
     {
@@ -44,30 +44,31 @@ public sealed class EntityAttackState : EntityState
 
     public override string StateName => "Attack";
 
-    /// <summary>当前段（起手快照；单发模式/兜底返回快照值）</summary>
-    private ComboEntry CurrentEntry => isSingle ? single : entries[comboIndex];
+    /// <summary>当前段（起手快照；单发模式/兜底返回快照值）。
+    /// 连段模式下 Entries 必有值（BeginCombo 里空表已转单发模式），故用 ! 说明该不变量</summary>
+    private ComboEntry CurrentEntry => IsSingle ? Single : Entries![ComboIndex];
 
     /// <summary>普攻起手：从连段第 0 段开始（Brain 在 Action 层空闲时调，随后 ChangeState 到本状态）。
     /// 表缺失/空表 → 兜底默认段（以单发模式跑）</summary>
     public void BeginCombo()
     {
-        comboGraph = Entity.Slots.CurrentComboGraph;
-        entries = comboGraph != null ? comboGraph.ComboEntries : null;
-        if (entries == null || entries.Length == 0)
+        ComboGraph = Entity.Slots.CurrentComboGraph;
+        Entries = ComboGraph != null ? ComboGraph.ComboEntries : null;
+        if (Entries == null || Entries.Length == 0)
         {
-            isSingle = true;
-            single = FistEntry;
+            IsSingle = true;
+            Single = FistEntry;
             return;
         }
-        isSingle = false;
-        comboIndex = 0;
+        IsSingle = false;
+        ComboIndex = 0;
     }
 
     /// <summary>单发段起手（瞄准射击变体/将来的蓄力）：打完即收招，不按 nextEntry 续段</summary>
     public void BeginSingle(ComboEntry entry)
     {
-        isSingle = true;
-        single = entry;
+        IsSingle = true;
+        Single = entry;
     }
 
     /// <summary>当前阶段名（调试面板显示用）</summary>
@@ -77,11 +78,11 @@ public sealed class EntityAttackState : EntityState
         {
             ComboEntry entry = CurrentEntry;
             float scale = DurationScale;
-            if (elapsed < entry.Windup * scale)
+            if (Elapsed < entry.Windup * scale)
             {
                 return $"{entry.Name} 前摇";
             }
-            if (elapsed < (entry.Windup + entry.Hit) * scale)
+            if (Elapsed < (entry.Windup + entry.Hit) * scale)
             {
                 return $"{entry.Name} 命中";
             }
@@ -95,7 +96,7 @@ public sealed class EntityAttackState : EntityState
     {
         get
         {
-            WeaponSO mainWeapon = Entity.Slots.Weapons.MainHand;
+            WeaponSO? mainWeapon = Entity.Slots.Weapons.MainHand;
             float weaponSpeed = mainWeapon != null ? mainWeapon.AttackSpeed : 1f;
             float modifierSpeed = Entity.Brain.Modifiers.GetStatMultiplier(EnumStatType.AttackSpeed);
             return 1f / Mathf.Max(0.05f, weaponSpeed * modifierSpeed);
@@ -104,7 +105,7 @@ public sealed class EntityAttackState : EntityState
 
     public override void Enter()
     {
-        elapsed = 0f;
+        Elapsed = 0f;
         Entity.Tags.Add((ulong)EnumEntityTag.Swinging);   // 挂挥剑标记（读方解释，见头注释）
     }
 
@@ -117,7 +118,7 @@ public sealed class EntityAttackState : EntityState
     {
         ComboEntry entry = CurrentEntry;
         float total = (entry.Windup + entry.Hit + entry.Recovery) * DurationScale;
-        if (elapsed >= total)
+        if (Elapsed >= total)
         {
             // 打完当前段且未续段：清空 Action 层（层回到未激活 = 无动作）
             Machine.ClearState(Layer);
@@ -126,22 +127,22 @@ public sealed class EntityAttackState : EntityState
 
     public override void Tick(float deltaTime)
     {
-        elapsed += deltaTime;
+        Elapsed += deltaTime;
 
         // 续段判定（仅连段模式）：后摇起点起取消窗口内收到攻击请求 → 跳 nextEntry。
         // 攻击中再按攻击键的请求不经 Brain 起手（CanAct 挡 Action 层活跃），
         // AttackQueued 保留到这里消费——消费后无条件清空（无缓冲）
-        if (!isSingle && Entity.Commands.AttackQueued)
+        if (!IsSingle && Entity.Commands.AttackQueued)
         {
             ComboEntry entry = CurrentEntry;
             float scale = DurationScale;
             float recoveryStart = (entry.Windup + entry.Hit) * scale;
             float window = entry.CancelWindow > 0f ? entry.CancelWindow * scale : entry.Recovery * scale;
-            if (elapsed >= recoveryStart && elapsed <= recoveryStart + window && entry.NextEntry >= 0
-                && entry.NextEntry < entries.Length)
+            if (Elapsed >= recoveryStart && Elapsed <= recoveryStart + window && entry.NextEntry >= 0
+                && entry.NextEntry < Entries!.Length)   // 连段模式下 Entries 必非空（空表已转单发模式）
             {
-                comboIndex = entry.NextEntry;
-                elapsed = 0f;   // 续段从新段的前摇开始（Swinging 保持挂载——状态未离开）
+                ComboIndex = entry.NextEntry;
+                Elapsed = 0f;   // 续段从新段的前摇开始（Swinging 保持挂载——状态未离开）
             }
             Entity.Commands.AttackQueued = false;
         }

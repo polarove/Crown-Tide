@@ -13,20 +13,21 @@ using UnityEngine;
 /// 霸体仲裁在施加时刻定死（controlActive = hasControl 且当时非霸体，Capability 仲裁）：
 /// 免疫≠解控——施加后才获得的霸体不清在挂的失控，失去霸体也不补挂（要补 = 重新施加一次）。
 /// 模板/实例分层：SO 是共享模板，运行时状态定格在下面的条目上（绝不运行时改 SO）。
+/// 摘除有两条路：Dispel(类别) 按位批量清（驱散/净化），Remove(SO) 精确摘单条（护甲套装破套/换档）。
 /// </summary>
 public sealed class ModifierList
 {
     /// <summary>一条活跃中的效果实例（SO 模板 + 运行时状态）</summary>
     private sealed class Modifier
     {
-        public ModifierEffect Effect;
+        public ModifierEffect Effect = null!;   // 唯一构造点已赋值（Apply 里 new）
         public bool ControlActive;         // 施加时刻定死：data.hasControl 且当时未处于霸体
         public float RemainingTime;        // data.duration <= 0 时不倒计时（永久，仅驱散可清）
         public int Stacks = 1;
         public float PeriodicAccumulator;  // 周期累加器（跳伤用）
     }
 
-    private readonly Entity Entity;
+    private readonly Entity Entity = null!;   // 构造函数注入（Entity 不会为 null）
     private readonly List<Modifier> Modifiers = new();   // 挂载序 = 稳定序（同强度先挂者胜）
     private ulong Mask;   // 容器域标签位（只扩张不收缩——位一旦归容器管，条目摘除后由 SyncOwned 清零）
 
@@ -133,13 +134,13 @@ public sealed class ModifierList
             StatModifierEntry[] modifiers = modifier.Effect.StatModifiers;
             for (int m = 0; m < modifiers.Length; m++)
             {
-                if (modifiers[m].stat != type)
+                if (modifiers[m].Stat != type)
                 {
                     continue;
                 }
                 for (int s = 0; s < modifier.Stacks; s++)
                 {
-                    result *= modifiers[m].multiplier;
+                    result *= modifiers[m].Multiplier;
                 }
             }
         }
@@ -163,7 +164,8 @@ public sealed class ModifierList
     }
 
     /// <summary>驱散：移除类别与 filter 有交集（位与非零）的全部条目，返回移除条数。
-    /// 例：Dispel(Debuff) = 净化、Dispel(Poison) = 驱毒、Dispel(All) = 全清</summary>
+    /// 例：Dispel(Debuff) = 净化、Dispel(Poison) = 驱毒、Dispel(All) = 全清。
+    /// 注意：All 不含 ArmorSet（装备来源是状态派生的，不该被驱散语义清掉——见 EnumModifierCategory）</summary>
     public int Dispel(EnumModifierCategory filter)
     {
         int removed = 0;
@@ -177,6 +179,32 @@ public sealed class ModifierList
         }
         SyncProjection();
         return removed;
+    }
+
+    /// <summary>精确摘除指定效果（按 SO 引用；返回是否摘到）。
+    /// 与 Dispel 的分工：Dispel = 按类别批量清（驱散/净化），本方法 = 精确摘单条
+    /// （护甲套装破套/换档用）。同 SO 引用至多一条（Apply 按引用归一），故摘一条即净。
+    /// 注意：按引用摘除 —— 若同一 SO 既被套装引用又被别处手动施加，这里会把那条一并摘掉
+    /// （数据侧纪律：同一 ModifierEffect 资产不要双用）</summary>
+    public bool Remove(ModifierEffect modifier)
+    {
+        if (modifier == null)
+        {
+            return false;
+        }
+
+        for (int i = Modifiers.Count - 1; i >= 0; i--)
+        {
+            if (!ReferenceEquals(Modifiers[i].Effect, modifier))
+            {
+                continue;
+            }
+
+            Modifiers.RemoveAt(i);
+            SyncProjection();
+            return true;
+        }
+        return false;
     }
 
     /// <summary>指定效果是否活跃（SO 引用比较；命中入口判"已在挂"用）</summary>
@@ -224,7 +252,7 @@ public sealed class ModifierList
     private void SyncProjection()
     {
         // 1) 失控呈现：活跃 controlActive 条目中 controlPriority 最高者（列表序稳定 = 同强度先挂者胜）
-        Modifier best = null;
+        Modifier? best = null;
         for (int i = 0; i < Modifiers.Count; i++)
         {
             Modifier modifier = Modifiers[i];
@@ -253,9 +281,9 @@ public sealed class ModifierList
         {
             return;
         }
-        EntityStateMachine machine = Entity.Brain.Machine;
+        EntityStateMachine machine = Entity.Brain.StateMachine;
         EntityState target = Entity.Brain.ResolveControlState(best.Effect.ControlKind);
-        EntityState current = machine.GetActive(EnumStateLayer.CrowdControl);
+        EntityState current = machine.GetActive(EnumStateLayer.CrowdControl)!;   // 未激活层返回 null 是合法值，故此处显式容忍
         if (current == target)
         {
             return;

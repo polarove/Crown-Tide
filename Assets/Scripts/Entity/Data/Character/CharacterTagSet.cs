@@ -8,27 +8,28 @@
 /// </summary>
 public sealed class CharacterTagSet
 {
-    private ulong bits;
+    // 字段名刻意用 BitMask（不是 Bits）：否则 private ulong Bits 与下面 public ulong Bits 同名会遮蔽
+    private ulong BitMask;
 
     /// <summary>当前全部标签位（只读；调试面板/将来网络同步整包用）</summary>
-    public ulong Bits => bits;
+    public ulong Bits => BitMask;
 
     /// <summary>是否持有 mask 内任意一位（掩码语义：传单个标签即"有没有"，传多个即"有其一"）</summary>
     public bool Has(ulong mask)
     {
-        return (bits & mask) != 0ul;
+        return (BitMask & mask) != 0ul;
     }
 
     /// <summary>挂标签（状态直写用；幂等）</summary>
     public void Add(ulong mask)
     {
-        bits |= mask;
+        BitMask |= mask;
     }
 
     /// <summary>摘标签（状态直写用；幂等）</summary>
     public void Remove(ulong mask)
     {
-        bits &= ~mask;
+        BitMask &= ~mask;
     }
 
     /// <summary>容器域位同步：ownedMask 内的位取 desired，域外一律不碰。
@@ -36,6 +37,6 @@ public sealed class CharacterTagSet
     /// 且不会误清状态直写的位（Swinging 等）。ownedMask 由容器只扩张维护（见 ModifierList）</summary>
     public void SyncOwned(ulong ownedMask, ulong desired)
     {
-        bits = (bits & ~ownedMask) | (desired & ownedMask);
+        BitMask = (BitMask & ~ownedMask) | (desired & ownedMask);
     }
 }

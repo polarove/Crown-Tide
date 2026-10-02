@@ -131,9 +131,15 @@ GameObject:
   - component: {fileID: 249588919}
   - component: {fileID: 249588918}
   - component: {fileID: 249588917}
-  - component: {fileID: 249588916}
   - component: {fileID: 249588921}
-  - component: {fileID: 249588922}
+  - component: {fileID: 249588930}
+  - component: {fileID: 249588929}
+  - component: {fileID: 249588928}
+  - component: {fileID: 249588927}
+  - component: {fileID: 249588926}
+  - component: {fileID: 249588925}
+  - component: {fileID: 249588924}
+  - component: {fileID: 249588923}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -141,151 +147,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &249588916
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 249588915}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5de36f474ef55be4ab59020230293877, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PlayerController
-  walkSpeed: 16
-  turnSpeed: 10
-  gravity: -20
-  apexHangGravityMultiplier: 0.5
-  apexHangVerticalSpeedThreshold: 1.5
-  fallingGravityMultiplier: 1.5
-  groundCheckDistance: 0.25
-  groundMask:
-    m_Bits: 4294967295
-  <CharacterController>k__BackingField: {fileID: 0}
-  <Equipment>k__BackingField: {fileID: 0}
-  jumpHeight: 2
-  sprintMultiplier: 1.6
-  lastFramePosition: {x: 0, y: 0, z: 0}
-  <DebugVelocity>k__BackingField: {x: 0, y: 0, z: 0}
-  dead: 0
-  sprintMode: 0
-  sprintTapTime: 0.3
-  showDebugInfo: 1
-  debugStunEffect: {fileID: 11400000, guid: 4b32b394190730c42bbda2051f731e3a, type: 2}
-  debugHasteEffect: {fileID: 0}
-  debugWoundEffect: {fileID: 0}
-  warnedMissingDebugEffects: 0
-  moveInput: {x: 0, y: 0}
-  sprintPressing: 0
-  sprintPressTime: 0
-  sprintToggled: 0
-  sprintHoldActive: 0
-  playerInput: {fileID: 0}
-  sprintAction:
-    m_Name: 
-    m_Type: 0
-    m_ExpectedControlType: 
-    m_Id: 948878a5-f731-478c-87a8-8b1de4627168
-    m_Processors: 
-    m_Interactions: 
-    m_SingletonActionBindings: []
-    m_Flags: 0
-    m_Priority: 0
-  debugStyle:
-    m_Name: 
-    m_Normal: {m_Background: {fileID: 0}, m_ScaledBackgrounds: []
-, m_TextColor:
-        r: 0
-        g: 0
-        b: 0
-        a: 1
-}
-    m_Hover: {m_Background: {fileID: 0}, m_ScaledBackgrounds: []
-, m_TextColor:
-        r: 0
-        g: 0
-        b: 0
-        a: 1
-}
-    m_Active: {m_Background: {fileID: 0}, m_ScaledBackgrounds: []
-, m_TextColor:
-        r: 0
-        g: 0
-        b: 0
-        a: 1
-}
-    m_Focused: {m_Background: {fileID: 0}, m_ScaledBackgrounds: []
-, m_TextColor:
-        r: 0
-        g: 0
-        b: 0
-        a: 1
-}
-    m_OnNormal: {m_Background: {fileID: 0}, m_ScaledBackgrounds: []
-, m_TextColor:
-        r: 0
-        g: 0
-        b: 0
-        a: 1
-}
-    m_OnHover: {m_Background: {fileID: 0}, m_ScaledBackgrounds: []
-, m_TextColor:
-        r: 0
-        g: 0
-        b: 0
-        a: 1
-}
-    m_OnActive: {m_Background: {fileID: 0}, m_ScaledBackgrounds: []
-, m_TextColor:
-        r: 0
-        g: 0
-        b: 0
-        a: 1
-}
-    m_OnFocused: {m_Background: {fileID: 0}, m_ScaledBackgrounds: []
-, m_TextColor:
-        r: 0
-        g: 0
-        b: 0
-        a: 1
-}
-    m_Border:
-      m_Left: 0
-      m_Right: 0
-      m_Top: 0
-      m_Bottom: 0
-    m_Margin:
-      m_Left: 0
-      m_Right: 0
-      m_Top: 0
-      m_Bottom: 0
-    m_Padding:
-      m_Left: 0
-      m_Right: 0
-      m_Top: 0
-      m_Bottom: 0
-    m_Overflow:
-      m_Left: 0
-      m_Right: 0
-      m_Top: 0
-      m_Bottom: 0
-    m_Font: {fileID: 0}
-    m_FontSize: 0
-    m_FontStyle: 0
-    m_Alignment: 0
-    m_WordWrap: 0
-    m_RichText: 1
-    m_TextClipping: 0
-    m_ImagePosition: 0
-    m_ContentOffset: {x: 0, y: 0}
-    m_ContentSpacing: 1
-    m_FixedWidth: 0
-    m_FixedHeight: 0
-    m_ImageIsTopAligned: 0
-    m_StretchWidth: 1
-    m_StretchHeight: 0
-    m_IsSDF: 0
 --- !u!143 &249588917
 CharacterController:
   m_ObjectHideFlags: 0
@@ -377,7 +238,7 @@ Transform:
   m_GameObject: {fileID: 249588915}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 1.25, z: 0}
+  m_LocalPosition: {x: 0, y: 0.1, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -413,7 +274,7 @@ MonoBehaviour:
   m_DefaultActionMap: Player
   m_SplitScreenIndex: -1
   m_Camera: {fileID: 330585545}
---- !u!114 &249588922
+--- !u!114 &249588923
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -422,12 +283,140 @@ MonoBehaviour:
   m_GameObject: {fileID: 249588915}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3152ffa0059a9d542a3530e5c0eea997, type: 3}
+  m_Script: {fileID: 11500000, guid: a5da7b64ee185134e9d7451e9fb3ad5f, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CharacterEquipment
-  character: {fileID: 0}
-  primaryWeapon: {fileID: 0}
-  secondaryWeapon: {fileID: 0}
+  m_EditorClassIdentifier: Entity.Runtime::EntityVisual
+  ShowDebugHud: 1
+--- !u!114 &249588924
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 249588915}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 83507c9c4ab396442aae08dce4c3bd46, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Entity.Runtime::Entity
+  Config: {fileID: 11400000, guid: f9930ece1f0c82e4db61723d1cb39841, type: 2}
+  EntityId: 0
+  isPlayerControlled: 1
+--- !u!114 &249588925
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 249588915}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 104b21b5f3216eb40ae2972954b77928, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Entity.Runtime::EntityBrain
+--- !u!114 &249588926
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 249588915}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5d97e48b9f19dd147925580ca7708ed3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Entity.Runtime::AITreeInputSource
+  Target: {fileID: 0}
+  DecisionInterval: 0.2
+--- !u!114 &249588927
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 249588915}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0324c647fc0c29843b967851c41280f2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Entity.Runtime::PlayerInputSource
+  ViewTransform: {fileID: 330585546}
+  FallbackActions: {fileID: -944628639613478452, guid: 5a9fd8f2346e44f40ae2cb6689c8f306, type: 3}
+  SprintMode: 0
+  SprintTapTime: 0.3
+  DebugStunModifier: {fileID: 0}
+  DebugHasteModifier: {fileID: 0}
+  DebugWoundModifier: {fileID: 0}
+--- !u!114 &249588928
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 249588915}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e9393355fcc9ec540b3b2c03439160a7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Entity.Runtime::CharacterSlotContainer
+  UnarmedComboGraph: {fileID: 0}
+  Weapons:
+    MainHand: {fileID: 0}
+    OffHand: {fileID: 0}
+  Skills:
+    Crown: {fileID: 0}
+    Tide: {fileID: 0}
+    CrownCooldownRemaining: 0
+    TideCooldownRemaining: 0
+  Armor:
+    Head: {fileID: 11400000, guid: b2009b4ec8f408240a01137207c7d477, type: 2}
+    Chest: {fileID: 11400000, guid: 583e7493f6d64994888129aeb88593e9, type: 2}
+    Legs: {fileID: 0}
+    Feet: {fileID: 0}
+  Accessories:
+    Accessories:
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+--- !u!114 &249588929
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 249588915}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 16c6276dd080dd346bc2addc5be5057a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Entity.Runtime::CharacterVitals
+--- !u!114 &249588930
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 249588915}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 572389ba19061e149b9098e7b27575a5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Entity.Runtime::EntityMotor
+  WalkSpeed: 5
+  SprintMultiplier: 1.6
+  TurnSpeed: 10
+  JumpHeight: 1.2
+  Gravity: -20
+  ApexHangGravityMultiplier: 0.5
+  ApexHangVerticalSpeedThreshold: 1.5
+  FallingGravityMultiplier: 1.5
+  GroundCheckDistance: 0.25
+  GroundMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
 --- !u!1 &330585543
 GameObject:
   m_ObjectHideFlags: 0
@@ -440,7 +429,7 @@ GameObject:
   - component: {fileID: 330585545}
   - component: {fileID: 330585544}
   - component: {fileID: 330585547}
-  - component: {fileID: 330585548}
+  - component: {fileID: 330585549}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -566,7 +555,7 @@ MonoBehaviour:
     m_VarianceClampScale: 0.9
     m_ContrastAdaptiveSharpening: 0
   m_Version: 2
---- !u!114 &330585548
+--- !u!114 &330585549
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -575,74 +564,34 @@ MonoBehaviour:
   m_GameObject: {fileID: 330585543}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 50eb683c04ba0aa4887117f7f4eed7e3, type: 3}
+  m_Script: {fileID: 11500000, guid: 98c9025f87d42894bb60ffc45c8bf7cd, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CameraFollow
-  followTarget: {fileID: 249588920}
-  thirdPersonPivotHeight: 1.5
-  thirdPersonCameraDistance: 8
-  shoulderOffsetDistance: 1.5
-  shoulderSwitchSmoothSpeed: 10
-  currentShoulderSide: 1
-  firstPersonEyeHeight: 0.6
-  viewModeSwitchSmoothSpeed: 8
-  inputActionAsset: {fileID: -944628639613478452, guid: 5a9fd8f2346e44f40ae2cb6689c8f306, type: 3}
-  gamepadLookRotationSpeed: 150
-  mouseLookSensitivity: 0.3
-  lookUpAngleLimit: 90
-  lookDownAngleLimit: 90
-  minimumCameraHeightAboveGround: 0.2
-  minimumCameraDistance: 2
-  groundSearchDistance: 10
-  groundMask:
+  m_EditorClassIdentifier: Entity.Runtime::CameraRig
+  FollowEntity: {fileID: 249588924}
+  ThirdPersonPivotHeight: 1.5
+  ThirdPersonCameraDistance: 8
+  ShoulderOffsetDistance: 1.5
+  ShoulderSwitchSmoothSpeed: 10
+  CurrentShoulderSide: 1
+  FirstPersonEyeHeight: 0.6
+  ViewModeSwitchSmoothSpeed: 8
+  LookDownPullStartAngle: 35
+  LookDownPullMinFactor: 0.25
+  LookDownPullSmoothSpeed: 6
+  SprintFovBoost: 12
+  SprintFovSmoothSpeed: 5
+  InputActionAsset: {fileID: -944628639613478452, guid: 5a9fd8f2346e44f40ae2cb6689c8f306, type: 3}
+  GamepadLookRotationSpeed: 150
+  MouseLookSensitivity: 0.3
+  LookUpAngleLimit: 90
+  LookDownAngleLimit: 90
+  MinimumCameraHeightAboveGround: 0.2
+  MinimumCameraDistance: 2
+  GroundSearchDistance: 10
+  GroundMask:
+    serializedVersion: 2
     m_Bits: 4294967295
-  lockAndHideCursor: 1
-  gamepadLookAction:
-    m_Name: 
-    m_Type: 0
-    m_ExpectedControlType: 
-    m_Id: da192af6-1694-4861-b1da-55b7df201734
-    m_Processors: 
-    m_Interactions: 
-    m_SingletonActionBindings: []
-    m_Flags: 0
-    m_Priority: 0
-  mouseLookAction:
-    m_Name: 
-    m_Type: 0
-    m_ExpectedControlType: 
-    m_Id: d3919aa3-1329-43e1-965e-f6875e05ed43
-    m_Processors: 
-    m_Interactions: 
-    m_SingletonActionBindings: []
-    m_Flags: 0
-    m_Priority: 0
-  switchShoulderAction:
-    m_Name: 
-    m_Type: 0
-    m_ExpectedControlType: 
-    m_Id: 55d1ecb3-d728-4950-8142-19753b91f913
-    m_Processors: 
-    m_Interactions: 
-    m_SingletonActionBindings: []
-    m_Flags: 0
-    m_Priority: 0
-  toggleViewModeAction:
-    m_Name: 
-    m_Type: 0
-    m_ExpectedControlType: 
-    m_Id: bc238715-93ea-460a-a427-4d7c61caf322
-    m_Processors: 
-    m_Interactions: 
-    m_SingletonActionBindings: []
-    m_Flags: 0
-    m_Priority: 0
-  yawRotationAngle: 0
-  pitchRotationAngle: 20
-  shoulderSideBlendFactor: 1
-  isFirstPersonMode: 0
-  firstPersonBlendFactor: 0
-  playerMeshRenderers: []
+  LockAndHideCursor: 1
 --- !u!1 &410087039
 GameObject:
   m_ObjectHideFlags: 0
@@ -819,6 +768,245 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1650938628
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1650938639}
+  - component: {fileID: 1650938638}
+  - component: {fileID: 1650938637}
+  - component: {fileID: 1650938636}
+  - component: {fileID: 1650938635}
+  - component: {fileID: 1650938634}
+  - component: {fileID: 1650938633}
+  - component: {fileID: 1650938632}
+  - component: {fileID: 1650938631}
+  - component: {fileID: 1650938630}
+  - component: {fileID: 1650938629}
+  m_Layer: 0
+  m_Name: Enemy
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1650938629
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1650938628}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a5da7b64ee185134e9d7451e9fb3ad5f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Entity.Runtime::EntityVisual
+  ShowDebugHud: 0
+--- !u!114 &1650938630
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1650938628}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 83507c9c4ab396442aae08dce4c3bd46, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Entity.Runtime::Entity
+  Config: {fileID: 11400000, guid: 334faf55d53ae394e8ebe4b358cfbde5, type: 2}
+  EntityId: 0
+  isPlayerControlled: 0
+--- !u!114 &1650938631
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1650938628}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 104b21b5f3216eb40ae2972954b77928, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Entity.Runtime::EntityBrain
+--- !u!114 &1650938632
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1650938628}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5d97e48b9f19dd147925580ca7708ed3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Entity.Runtime::AITreeInputSource
+  Target: {fileID: 249588920}
+  DecisionInterval: 0.2
+--- !u!114 &1650938633
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1650938628}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0324c647fc0c29843b967851c41280f2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Entity.Runtime::PlayerInputSource
+  ViewTransform: {fileID: 0}
+  FallbackActions: {fileID: 0}
+  SprintMode: 0
+  SprintTapTime: 0.3
+  DebugStunModifier: {fileID: 0}
+  DebugHasteModifier: {fileID: 0}
+  DebugWoundModifier: {fileID: 0}
+--- !u!114 &1650938634
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1650938628}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 62899f850307741f2a39c98a8b639597, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.InputSystem::UnityEngine.InputSystem.PlayerInput
+  m_Actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+  m_NotificationBehavior: 0
+  m_UIInputModule: {fileID: 0}
+  m_DeviceLostEvent:
+    m_PersistentCalls:
+      m_Calls: []
+  m_DeviceRegainedEvent:
+    m_PersistentCalls:
+      m_Calls: []
+  m_ControlsChangedEvent:
+    m_PersistentCalls:
+      m_Calls: []
+  m_ActionEvents: []
+  m_NeverAutoSwitchControlSchemes: 0
+  m_DefaultControlScheme: 
+  m_DefaultActionMap: 
+  m_SplitScreenIndex: -1
+  m_Camera: {fileID: 0}
+--- !u!114 &1650938635
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1650938628}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e9393355fcc9ec540b3b2c03439160a7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Entity.Runtime::CharacterSlotContainer
+  UnarmedComboGraph: {fileID: 0}
+  Weapons:
+    MainHand: {fileID: 0}
+    OffHand: {fileID: 0}
+  Skills:
+    Crown: {fileID: 0}
+    Tide: {fileID: 0}
+    CrownCooldownRemaining: 0
+    TideCooldownRemaining: 0
+  Armor:
+    Head: {fileID: 11400000, guid: b2009b4ec8f408240a01137207c7d477, type: 2}
+    Chest: {fileID: 0}
+    Legs: {fileID: 0}
+    Feet: {fileID: 0}
+  Accessories:
+    Accessories:
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+--- !u!114 &1650938636
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1650938628}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 16c6276dd080dd346bc2addc5be5057a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Entity.Runtime::CharacterVitals
+--- !u!114 &1650938637
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1650938628}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 572389ba19061e149b9098e7b27575a5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Entity.Runtime::EntityMotor
+  WalkSpeed: 4
+  SprintMultiplier: 1.6
+  TurnSpeed: 10
+  JumpHeight: 1.2
+  Gravity: -20
+  ApexHangGravityMultiplier: 0.5
+  ApexHangVerticalSpeedThreshold: 1.5
+  FallingGravityMultiplier: 1.5
+  GroundCheckDistance: 0.25
+  GroundMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+--- !u!143 &1650938638
+CharacterController:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1650938628}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Height: 2
+  m_Radius: 0.5
+  m_SlopeLimit: 45
+  m_StepOffset: 0.3
+  m_SkinWidth: 0.08
+  m_MinMoveDistance: 0.001
+  m_Center: {x: 0, y: 0, z: 0}
+--- !u!4 &1650938639
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1650938628}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0.1, z: 7}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1857199943
 GameObject:
   m_ObjectHideFlags: 0
@@ -940,3 +1128,4 @@ SceneRoots:
   - {fileID: 832575519}
   - {fileID: 1857199947}
   - {fileID: 249588920}
+  - {fileID: 1650938639}

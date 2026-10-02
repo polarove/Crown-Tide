@@ -1,0 +1,18 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dbb87654f3a9431499701ff8e4d226c9, type: 3}
+  m_Name: Armor_DemoHead
+  m_EditorClassIdentifier: Entity.Runtime::ArmorSO
+  Name: "\u6F14\u793A\u5934\u76D4"
+  Value: 1
+  Part: 1
+  Set: {fileID: 11400000, guid: ee507f7a37729ab44a6723e83eea6f42, type: 2}

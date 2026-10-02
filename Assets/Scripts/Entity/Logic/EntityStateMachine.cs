@@ -16,10 +16,11 @@ public sealed class EntityStateMachine
 {
     private static readonly int LayerCount = Enum.GetValues(typeof(EnumStateLayer)).Length;
 
-    private readonly EntityState[] Active = new EntityState[LayerCount];
+    // 层槽：未激活的层为 null（合法状态），故元素类型可空
+    private readonly EntityState?[] Active = new EntityState?[LayerCount];
 
     /// <summary>取某层当前活跃状态；层未激活返回 null</summary>
-    public EntityState GetActive(EnumStateLayer layer)
+    public EntityState? GetActive(EnumStateLayer layer)
     {
         return Active[(int)layer];
     }
@@ -40,9 +41,9 @@ public sealed class EntityStateMachine
         {
             EntityState state = initialStates[i];
             int layerIndex = (int)state.Layer;
-            if (Active[layerIndex] != null)
+            if (Active[layerIndex] is { } occupied)
             {
-                Debug.LogWarning($"状态机初始化：{state.Layer} 层已有初始状态 {Active[layerIndex].StateName}，忽略 {state.StateName}");
+                Debug.LogWarning($"状态机初始化：{state.Layer} 层已有初始状态 {occupied.StateName}，忽略 {state.StateName}");
                 continue;
             }
             Active[layerIndex] = state;
@@ -55,16 +56,16 @@ public sealed class EntityStateMachine
     {
         for (int i = 0; i < LayerCount; i++)
         {
-            if (Active[i] != null && !IsSuppressed(i))
+            if (Active[i] is { } ticking && !IsSuppressed(i))
             {
-                Active[i].HandleTransitions();
+                ticking.HandleTransitions();
             }
         }
         for (int i = 0; i < LayerCount; i++)
         {
-            if (Active[i] != null && !IsSuppressed(i))
+            if (Active[i] is { } ticking && !IsSuppressed(i))
             {
-                Active[i].Tick(deltaTime);
+                ticking.Tick(deltaTime);
             }
         }
     }
@@ -96,7 +97,7 @@ public sealed class EntityStateMachine
     {
         int layerIndex = (int)layer;
         Active[layerIndex]?.Exit();
-        Active[layerIndex] = null;
+        Active[layerIndex] = null;   // 层回到未激活（槽位元素本身可空）
     }
 
     /// <summary>是否有任一活跃状态声明了霸体（免疫 CrowdControl 的进入，不解除已生效的）。
@@ -105,7 +106,7 @@ public sealed class EntityStateMachine
     {
         for (int i = 0; i < LayerCount; i++)
         {
-            EntityState state = Active[i];
+            EntityState? state = Active[i];
             if (state != null && state.GrantsSuperArmor)
             {
                 return true;

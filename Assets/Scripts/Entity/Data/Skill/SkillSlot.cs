@@ -14,11 +14,12 @@ using UnityEngine;
 [Serializable]
 public sealed class SkillSlot
 {
+    // 空 = 该位未装配，是合法状态，故声明为可空
     [Tooltip("冠冕技能（SkillSO；空 = 该位未装配）")]
-    public SkillSO Crown;
+    public SkillSO? Crown;
 
     [Tooltip("潮汐技能（SkillSO；空 = 该位未装配）")]
-    public SkillSO Tide;
+    public SkillSO? Tide;
 
     [Tooltip("冠冕位冷却剩余秒数（运行时，调试可见；释放成功时置为 cooldown）")]
     public float CrownCooldownRemaining;
@@ -39,8 +40,10 @@ public sealed class SkillSlot
         }
     }
 
-    /// <summary>按种类取技能与冷却槽（冠冕/潮汐两位是数据形状钦定的，不做开放数组）</summary>
-    public bool TryGet(EnumSkillType kind, out SkillSO skill, out float cooldownRemaining)
+    /// <summary>按种类取技能与冷却槽（冠冕/潮汐两位是数据形状钦定的，不做开放数组）。
+    /// skill 返回可空：返回 false 时它必为 null（未装配），调用方必须用返回值门禁——
+    /// 这就是 TryGet 模式的用意，注解如实表达</summary>
+    public bool TryGet(EnumSkillType kind, out SkillSO? skill, out float cooldownRemaining)
     {
         bool isCrown = kind == EnumSkillType.Crown;
         skill = isCrown ? Crown : Tide;
@@ -51,9 +54,9 @@ public sealed class SkillSlot
     /// <summary>释放闸门校验（不扣减）：技能已装配 && 冷却结束 && 信心方向闸门放行。
     /// 信心增量 = (int)kind × faithDelta（枚举值即方向因子：冠冕 +1 涨、潮汐 -1 降，
     /// 需求钦定）——方向由技能位钦定，SO 只配正数幅度，不可能配错方向</summary>
-    public bool CanCast(EnumSkillType kind, SkillResource faith)
+    public bool CanCast(EnumSkillType kind, SkillResource? faith)
     {
-        if (!TryGet(kind, out SkillSO skill, out float cooldownRemaining))
+        if (!TryGet(kind, out SkillSO? skill, out float cooldownRemaining) || skill == null)
         {
             return false;
         }
@@ -66,9 +69,9 @@ public sealed class SkillSlot
 
     /// <summary>释放成功结算（Logic 层确认起手后调用）：写冷却 + 写信心增量（写回 Data）。
     /// 增量 = (int)Kind × Faith（位方向 × 幅度），钳在 ±faithCapacity</summary>
-    public void Consume(EnumSkillType kind, SkillResource faith)
+    public void Consume(EnumSkillType kind, SkillResource? faith)
     {
-        if (!TryGet(kind, out SkillSO skill, out _))
+        if (!TryGet(kind, out SkillSO? skill, out _) || skill == null)
         {
             return;
         }

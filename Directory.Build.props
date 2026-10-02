@@ -1,5 +1,8 @@
 <Project>
   <PropertyGroup>
+    <!-- 可空引用分析：全局开启（项目自己的代码全部按 nullable 注解写）。
+         注意 Unity 编译器不读本文件；如需 Editor/CI 一致，另在 ProjectSettings 的
+         additionalCompilerArguments 加 -nullable:enable -->
     <Nullable>enable</Nullable>
   </PropertyGroup>
 </Project>
