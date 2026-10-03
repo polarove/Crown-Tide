@@ -158,7 +158,7 @@ public sealed class EntityCombatVisual : MonoBehaviour
         var go = new GameObject(label, typeof(RectTransform), typeof(Text));
         go.transform.SetParent(parent, false);
         Text text = go.GetComponent<Text>();
-        text.font = HudFont;
+        text.font = HudFont!;
         text.fontSize = size;
         text.color = Color.white;
         text.alignment = TextAnchor.MiddleCenter;
