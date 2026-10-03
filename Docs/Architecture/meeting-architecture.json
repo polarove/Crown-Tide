@@ -1,0 +1,309 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Crown Tide · 会议架构约定",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1240,
+      730
+    ],
+    "legend": {
+      "entries": {
+        "backend": {
+          "label": "仲裁与行为"
+        },
+        "database": {
+          "label": "黑板／数据"
+        },
+        "messagebus": {
+          "label": "指令输入"
+        },
+        "frontend": {
+          "label": "呈现"
+        }
+      }
+    }
+  },
+  "components": [
+    {
+      "id": "player-input",
+      "type": "messagebus",
+      "label": "Player Input",
+      "sublabel": "键盘 / 鼠标 / 手柄 → 指令",
+      "pos": [
+        60,
+        55
+      ],
+      "size": [
+        220,
+        76
+      ]
+    },
+    {
+      "id": "ai-input",
+      "type": "messagebus",
+      "label": "AI Input",
+      "sublabel": "决策树约每 0.2 秒 → 指令",
+      "pos": [
+        400,
+        55
+      ],
+      "size": [
+        220,
+        76
+      ]
+    },
+    {
+      "id": "entity-brain",
+      "type": "backend",
+      "label": "Entity Brain",
+      "sublabel": "Capabilities：能否执行",
+      "pos": [
+        400,
+        245
+      ],
+      "size": [
+        220,
+        76
+      ]
+    },
+    {
+      "id": "state-machine",
+      "type": "backend",
+      "label": "分层状态机",
+      "sublabel": "校验转换 / 层级 / 时长 / 流转",
+      "pos": [
+        400,
+        405
+      ],
+      "size": [
+        220,
+        76
+      ],
+      "tag": "不赋值、不实施具体效果"
+    },
+    {
+      "id": "execution",
+      "type": "backend",
+      "label": "效果处理与行为实施",
+      "sublabel": "先进入状态，再施加自身效果",
+      "tag": "通过 Data API 更新数据",
+      "pos": [
+        400,
+        565
+      ],
+      "size": [
+        220,
+        76
+      ]
+    },
+    {
+      "id": "blackboard",
+      "type": "database",
+      "label": "Data / 黑板",
+      "sublabel": "生命 / 能力参数 / Buff 标记",
+      "tag": "不主动改能力、不反向改上层",
+      "pos": [
+        930,
+        565
+      ],
+      "size": [
+        260,
+        76
+      ]
+    },
+    {
+      "id": "presentation",
+      "type": "frontend",
+      "label": "UI / 表现",
+      "sublabel": "相机 / 动画 / 音效 / 界面",
+      "tag": "表现接口待定",
+      "pos": [
+        60,
+        565
+      ],
+      "size": [
+        220,
+        76
+      ]
+    },
+    {
+      "id": "ui-input",
+      "type": "messagebus",
+      "label": "UI 操作请求",
+      "sublabel": "交互面板 → 逻辑 API 请求",
+      "pos": [
+        740,
+        55
+      ],
+      "size": [
+        220,
+        76
+      ]
+    },
+    {
+      "id": "debug-module",
+      "type": "backend",
+      "label": "独立 Debug 模块",
+      "sublabel": "专属目录 · 关闭时不接入",
+      "pos": [
+        60,
+        405
+      ],
+      "size": [
+        220,
+        76
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "player-request",
+      "from": "player-input",
+      "to": "entity-brain",
+      "label": "玩家请求",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "ai-request",
+      "from": "ai-input",
+      "to": "entity-brain",
+      "label": "AI 请求",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 50
+    },
+    {
+      "id": "approved-transition",
+      "from": "entity-brain",
+      "to": "state-machine",
+      "label": "资格通过后申请转换",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 54
+    },
+    {
+      "id": "execute-behavior",
+      "from": "state-machine",
+      "to": "execution",
+      "label": "生效 / 结束（通知待定）",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 54
+    },
+    {
+      "id": "read-facts",
+      "from": "entity-brain",
+      "to": "blackboard",
+      "label": "读取当前数据",
+      "variant": "dashed",
+      "fromSide": "right",
+      "toSide": "top"
+    },
+    {
+      "id": "write-result",
+      "from": "execution",
+      "to": "blackboard",
+      "label": "调用 Data API 赋值",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "display-result",
+      "from": "execution",
+      "to": "presentation",
+      "label": "呈现接缝待定",
+      "variant": "dashed",
+      "fromSide": "left",
+      "toSide": "right"
+    },
+    {
+      "id": "ui-request",
+      "from": "ui-input",
+      "to": "entity-brain",
+      "label": "UI 请求",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "debug-injection",
+      "from": "debug-module",
+      "to": "entity-brain",
+      "label": "仅 Debug 开启时接入",
+      "variant": "dashed",
+      "fromSide": "top",
+      "toSide": "left",
+      "via": [
+        [
+          170,
+          283
+        ]
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "判断与效果分工",
+      "items": [
+        "仲裁判能否跳；状态机校验转换；效果提供跳跃倍率。",
+        "逻辑负责赋值、Buff 施加与移除；Data 不反向改上层。"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "技能组合与命中",
+      "items": [
+        "远程武器暂不开发；已移除射击入口与专用瞄准输入。",
+        "自身效果与目标效果分开；目标效果依赖实际命中结果。",
+        "V 非零信心起手快照；Logic 按绝对值×K设置绿血及毫秒时长，耗尽归还。状态仅标记，Data不驱动玩法。"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "开发约束与未定接口",
+      "items": [
+        "Debug 独立执行，仲裁只判断；代码审查通过再做下一功能。",
+        "黑板组织、通知与命中返回方式待定；图不代表已实现。"
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "UI / 输入 · 提交请求",
+      "wraps": [
+        "player-input",
+        "ai-input",
+        "ui-input"
+      ],
+      "pad": 22
+    },
+    {
+      "kind": "region",
+      "label": "Logic · 仲裁、状态流转、效果处理",
+      "wraps": [
+        "entity-brain",
+        "state-machine",
+        "execution"
+      ],
+      "pad": 24
+    },
+    {
+      "kind": "region",
+      "label": "Data · 黑板与数据接口",
+      "wraps": [
+        "blackboard"
+      ],
+      "pad": 22
+    }
+  ]
+}

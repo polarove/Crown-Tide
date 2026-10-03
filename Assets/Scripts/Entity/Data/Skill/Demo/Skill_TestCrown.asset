@@ -1,0 +1,59 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 12d0119bcee0de74399b1639c1bb6ec1, type: 3}
+  m_Name: Skill_TestCrown
+  m_EditorClassIdentifier: Entity.Runtime::SkillSO
+  Name: "\u6D4B\u8BD5\u5360\u4F4D\uFF1A\u51A0\u5195"
+  Kind: 1
+  FaithThreshold: 33
+  AllowWhileControlled: 0
+  Cooldown: 1
+  HasAttack: 1
+  Attack:
+    Name: "\u6D4B\u8BD5\u5360\u4F4D\uFF1A\u51A0\u5195"
+    Windup: 0.15
+    Hit: 0.1
+    Recovery: 0.3
+    NextEntry: -1
+    CancelWindow: 0
+    MeleeDamage: 15
+    HitShape: 1
+    HitRadius: 2.5
+    HitAngle: 140
+    HitHeight: 2
+    HitOffset: {x: 0, y: 1, z: 0}
+    HitLayers:
+      serializedVersion: 2
+      m_Bits: 4294967295
+    IncludeTriggers: 0
+  UseBurstAttack: 1
+  BurstAttack:
+    Name: "\u6D4B\u8BD5\u5360\u4F4D\uFF1A\u51A0\u5195\uFF08\u5F3A\u5316\uFF09"
+    Windup: 0.15
+    Hit: 0.1
+    Recovery: 0.3
+    NextEntry: -1
+    CancelWindow: 0
+    MeleeDamage: 30
+    HitShape: 1
+    HitRadius: 2.5
+    HitAngle: 140
+    HitHeight: 2
+    HitOffset: {x: 0, y: 1, z: 0}
+    HitLayers:
+      serializedVersion: 2
+      m_Bits: 4294967295
+    IncludeTriggers: 0
+  Effects: []
+  BurstEffects: []
+  AfterTideEffects: []
+  DispelOnCast: 0

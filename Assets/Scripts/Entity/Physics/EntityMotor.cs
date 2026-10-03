@@ -102,6 +102,16 @@ public sealed class EntityMotor : MonoBehaviour
         Controller.Move(VerticalVelocity * deltaTime * Vector3.up);
     }
 
+    /// <summary>起手的水平朝向原语；成功动作由 Logic 决定，零值／非法值保留原方向。</summary>
+    public void FaceDirection(Vector3 direction)
+    {
+        direction.y = 0f;
+        if (float.IsNaN(direction.x) || float.IsInfinity(direction.x)
+            || float.IsNaN(direction.z) || float.IsInfinity(direction.z)
+            || direction.sqrMagnitude < 0.000001f) return;
+        transform.rotation = Quaternion.LookRotation(direction);
+    }
+
     /// <summary>有移动方向时平滑转向（方向为零不转，保留原朝向）</summary>
     public void RotateTowards(Vector3 direction, float deltaTime)
     {

@@ -10,9 +10,9 @@ public sealed class EntityCapabilities
 {
     private readonly Entity Entity;
 
-    /// <summary>宿主状态机（唯一解引用点）：Brain 未装配时用空条件运算符收敛。
+    /// <summary>宿主状态机（唯一解引用点）：Brain 未装配或已销毁时返回空。
     /// 收在属性里而不是每处写法不同，是让 null 分析有单点可依</summary>
-    private EntityStateMachine? Machine => Entity.Brain?.StateMachine;
+    private EntityStateMachine? Machine => Entity.Brain != null ? Entity.Brain.StateMachine : null;
 
     public EntityCapabilities(Entity entity)
     {
@@ -22,7 +22,7 @@ public sealed class EntityCapabilities
     /// <summary>能否移动：活着 && 未失控 && 无锁移动声明（攻击/闪避期间）</summary>
     public bool CanMove()
     {
-        if (Entity.Vitals.IsDead || IsControlled())
+        if (!Entity.CanOperate || IsControlled())
         {
             return false;
         }
@@ -34,15 +34,29 @@ public sealed class EntityCapabilities
     /// 连段续击不查这里（续段是 AttackState 内部事务，不走起手门禁）</summary>
     public bool CanAct()
     {
-        return !Entity.Vitals.IsDead && !IsControlled()
+        return CanUseSkill();
+    }
+
+    /// <summary>技能共用释放门禁；允许被控制时释放的技能必须显式配置例外。</summary>
+    public bool CanUseSkill(bool allowWhileControlled = false)
+    {
+        return Entity.CanOperate && (allowWhileControlled || !IsControlled())
             && Machine?.GetActive(EnumStateLayer.Action) == null;
+    }
+
+    /// <summary>普通技能统一查询：通用能力 + 数据条件。</summary>
+    public bool CanCastSkill(Assets.Scripts.Entity.Data.Skill.EnumSkillType kind)
+    {
+        return Entity.Slots.Skills.TryGet(kind, out SkillSO? skill, out _) && skill != null
+            && CanUseSkill(skill.AllowWhileControlled)
+            && Entity.Slots.Skills.CanCast(kind, Entity.Vitals.Faith);
     }
 
     /// <summary>能否跳跃：活着 && 未失控 && 在地面（冲量类效果都要过 CC 门禁，
     /// 否则会绕过状态机的层压制——旧管线的教训）</summary>
     public bool CanJump()
     {
-        return !Entity.Vitals.IsDead && !IsControlled() && Entity.Motor.IsGrounded;
+        return Entity.CanOperate && !IsControlled() && Entity.Motor.IsGrounded;
     }
 
     /// <summary>是否处于失控（CrowdControl 层有活跃状态 = 被 CC 压制中）</summary>

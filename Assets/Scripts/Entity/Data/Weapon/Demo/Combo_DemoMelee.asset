@@ -1,0 +1,51 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9cb029d0e5ec28c4399b62088a7ad7a7, type: 3}
+  m_Name: Combo_DemoMelee
+  m_EditorClassIdentifier: Entity.Runtime::WeaponComboGraph
+  LocomotionStyle: 0
+  MoveSpeedMultiplier: 1
+  ComboEntries:
+  - Name: "\u6F14\u793A\u8FD1\u6218\uFF08\u4E34\u65F6\u6D4B\u8BD5\u503C\uFF09"
+    Windup: 0.15
+    Hit: 0.1
+    Recovery: 0.3
+    NextEntry: -1
+    CancelWindow: 0
+    MeleeDamage: 3
+    HitShape: 1
+    HitRadius: 2.5
+    HitAngle: 140
+    HitHeight: 2
+    HitOffset: {x: 0, y: 1, z: 0}
+    HitLayers:
+      serializedVersion: 2
+      m_Bits: 4294967295
+    IncludeTriggers: 0
+  HasCharge: 0
+  ChargeEntry:
+    Name: 
+    Windup: 0
+    Hit: 0
+    Recovery: 0
+    NextEntry: 0
+    CancelWindow: 0
+    MeleeDamage: 0
+    HitShape: 0
+    HitRadius: 0
+    HitAngle: 0
+    HitHeight: 0
+    HitOffset: {x: 0, y: 0, z: 0}
+    HitLayers:
+      serializedVersion: 2
+      m_Bits: 0
+    IncludeTriggers: 0

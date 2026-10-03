@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 890a268d6c483c64aac1e7cbf23b23b1, type: 3}
+  m_Name: Effect_TestCrownLifeSteal
+  m_EditorClassIdentifier: Entity.Runtime::ModifierEffect
+  Name: "\u6D4B\u8BD5\u5360\u4F4D\uFF1A\u6F6E\u6C50\u540E\u51A0\u5195\u5438\u8840"
+  Category: 1
+  Duration: 20
+  StackPolicy: 1
+  MaxStacks: 3
+  HasControl: 0
+  ControlPriority: 0
+  ControlKind: 1
+  StatModifiers: []
+  HasPeriodic: 0
+  TickInterval: 1
+  DamagePerTick: 5
+  FaithDeltaPerTick: 0
+  FaithTickInterval: 0
+  CrownLifeStealRatio: 1
+  GrantedTag: 0

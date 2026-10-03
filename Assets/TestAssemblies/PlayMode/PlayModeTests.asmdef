@@ -4,7 +4,9 @@
     "references": [
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
-        "Entity.Runtime"
+        "Unity.InputSystem",
+        "Entity.Runtime",
+        "Unity.ugui"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -43,6 +43,8 @@ public sealed class ArmorSetBonusList
 
         CollectHeldSets();
         CollectDesiredBonuses();
+        CollectWeaponBonuses(Entity.Slots.Weapons.MainHand);
+        CollectWeaponBonuses(Entity.Slots.Weapons.OffHand);
 
         // 摘除：本次不再达标的已挂档位（换套/掉件/换档都会走到这里）
         for (int i = Applied.Count - 1; i >= 0; i--)
@@ -68,7 +70,7 @@ public sealed class ArmorSetBonusList
                 continue;
             }
 
-            modifiers.Apply(effect);
+            modifiers.Apply(effect, 0f); // 装备派生效果必须是永久实例，不改共享模板的默认时长。
             if (registered)
             {
                 Applied.Remove(effect);
@@ -191,6 +193,22 @@ public sealed class ArmorSetBonusList
                 {
                     Desired.Add(effect);   // 同一效果被多档引用时只算一条（OnValidate 会告警提醒）
                 }
+            }
+        }
+    }
+
+    private void CollectWeaponBonuses(WeaponSO? weapon)
+    {
+        if (weapon == null || weapon.Set == null || weapon.SetBonuses == null
+            || weapon.Set.Bonuses == null || !PieceCounts.TryGetValue(weapon.Set, out int pieces)) return;
+        foreach (ArmorSetBonus weaponBonus in weapon.SetBonuses)
+        {
+            if (weaponBonus.Modifier == null || weaponBonus.PieceCount <= 0) continue;
+            foreach (ArmorSetBonus armorBonus in weapon.Set.Bonuses)
+            {
+                if (armorBonus.PieceCount == weaponBonus.PieceCount && pieces >= armorBonus.PieceCount
+                    && armorBonus.Modifier != null && !Desired.Contains(weaponBonus.Modifier))
+                    Desired.Add(weaponBonus.Modifier);
             }
         }
     }

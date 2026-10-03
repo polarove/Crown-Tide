@@ -1,4 +1,5 @@
 {
+    "version": 1,
     "name": "PlayerControls",
     "maps": [
         {
@@ -6,88 +7,139 @@
             "id": "d1c95232-3842-4d9f-a18c-f5effb8e6511",
             "actions": [
                 {
-                    "name": "Move",
-                    "type": "Value",
-                    "expectedControlType": "Vector2",
-                    "id": "26037a35-fed6-43dd-89f1-49621f9a3f53",
+                    "name": "WeaponSkill",
+                    "type": "Button",
+                    "id": "243c5b2d-43c8-47a2-b530-2f566bc30936",
+                    "expectedControlType": "Button",
                     "processors": "",
                     "interactions": "",
-                    "initialStateCheck": true
+                    "initialStateCheck": false,
+                    "priority": 0
+                },
+                {
+                    "name": "Move",
+                    "type": "Value",
+                    "id": "26037a35-fed6-43dd-89f1-49621f9a3f53",
+                    "expectedControlType": "Vector2",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": true,
+                    "priority": 0
                 },
                 {
                     "name": "Jump",
                     "type": "Button",
-                    "expectedControlType": "Button",
                     "id": "2b2d6ab3-c8c9-4a23-bf52-d9da9c9d2198",
+                    "expectedControlType": "Button",
                     "processors": "",
                     "interactions": "",
-                    "initialStateCheck": false
+                    "initialStateCheck": false,
+                    "priority": 0
                 },
                 {
                     "name": "Look",
                     "type": "Value",
-                    "expectedControlType": "Vector2",
                     "id": "2ea9cca1-f82a-4a95-ac6e-7280559b9435",
+                    "expectedControlType": "Vector2",
                     "processors": "",
                     "interactions": "",
-                    "initialStateCheck": true
+                    "initialStateCheck": true,
+                    "priority": 0
                 },
                 {
                     "name": "SwitchShoulder",
                     "type": "Button",
-                    "expectedControlType": "Button",
                     "id": "daa5a7e9-51ea-485c-affd-98b042156c3b",
+                    "expectedControlType": "Button",
                     "processors": "",
                     "interactions": "",
-                    "initialStateCheck": false
+                    "initialStateCheck": false,
+                    "priority": 0
                 },
                 {
                     "name": "ToggleView",
                     "type": "Button",
-                    "expectedControlType": "Button",
                     "id": "77133a1c-eea1-4a0a-819c-0c888a863733",
+                    "expectedControlType": "Button",
                     "processors": "",
                     "interactions": "",
-                    "initialStateCheck": false
+                    "initialStateCheck": false,
+                    "priority": 0
                 },
                 {
                     "name": "MouseLook",
                     "type": "Value",
-                    "expectedControlType": "Vector2",
                     "id": "f609eecb-340e-469d-aa54-1e70d8bbd0be",
+                    "expectedControlType": "Vector2",
                     "processors": "",
                     "interactions": "",
-                    "initialStateCheck": true
+                    "initialStateCheck": true,
+                    "priority": 0
                 },
                 {
                     "name": "Sprint",
                     "type": "Button",
-                    "expectedControlType": "Button",
                     "id": "c2d84a51-9f37-4b6e-a1c4-8d5e2f0b7a93",
+                    "expectedControlType": "Button",
                     "processors": "",
                     "interactions": "",
-                    "initialStateCheck": false
+                    "initialStateCheck": false,
+                    "priority": 0
                 },
                 {
                     "name": "Attack",
                     "type": "Button",
-                    "expectedControlType": "Button",
                     "id": "a7c8d9e0-1f2a-3b4c-5d6e-7f8a9b0c1d2e",
+                    "expectedControlType": "Button",
                     "processors": "",
                     "interactions": "",
-                    "initialStateCheck": false
+                    "initialStateCheck": false,
+                    "priority": 0
                 },
                 {
-                    "name": "Aim",
+                    "name": "CrownSkill",
                     "type": "Button",
-                    "expectedControlType": "Button",
-                    "id": "e3f4a5b6-c7d8-4e9f-8a0b-1c2d3e4f5a6b",
+                    "id": "a2f1a936-d29b-4f7e-baff-138d3664e11b",
+                    "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
-                    "initialStateCheck": true
+                    "initialStateCheck": false,
+                    "priority": 0
+                },
+                {
+                    "name": "TideSkill",
+                    "type": "Button",
+                    "id": "8f5334d4-aa02-4cd9-8195-fac24f323709",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false,
+                    "priority": 0
                 }
             ],
             "bindings": [
+                {
+                    "name": "",
+                    "id": "cc07ee16-8b83-4b49-b7db-75c05333d30b",
+                    "path": "<Keyboard>/v",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Keyboard&Mouse",
+                    "action": "WeaponSkill",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "829155cd-947c-4c53-aa39-ec1db967031d",
+                    "path": "<Gamepad>/leftShoulder",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Gamepad",
+                    "action": "WeaponSkill",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
                 {
                     "name": "WASD",
                     "id": "66832e19-a271-4a7c-9652-f3bba8128f43",
@@ -299,23 +351,45 @@
                 },
                 {
                     "name": "",
-                    "id": "f5a6b7c8-d9e0-4f1a-8b2c-3d4e5f6a7b8c",
-                    "path": "<Mouse>/rightButton",
+                    "id": "d610fcb2-f2c5-4bc2-893d-f50905ba9389",
+                    "path": "<Keyboard>/q",
                     "interactions": "",
                     "processors": "",
                     "groups": "Keyboard&Mouse",
-                    "action": "Aim",
+                    "action": "CrownSkill",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
                 {
                     "name": "",
-                    "id": "a7b8c9d0-e1f2-4a3b-9c4d-5e6f7a8b9c0d",
-                    "path": "<Gamepad>/leftTrigger",
+                    "id": "4594fcd9-fffe-4593-8903-85b9c46535ff",
+                    "path": "<Gamepad>/rightShoulder",
                     "interactions": "",
                     "processors": "",
                     "groups": "Gamepad",
-                    "action": "Aim",
+                    "action": "CrownSkill",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "0c52ee19-4277-4d4b-b29d-6c86e1bb81ab",
+                    "path": "<Keyboard>/e",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Keyboard&Mouse",
+                    "action": "TideSkill",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "2f216746-31d5-4786-9b56-d899f744c01e",
+                    "path": "<Gamepad>/buttonNorth",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Gamepad",
+                    "action": "TideSkill",
                     "isComposite": false,
                     "isPartOfComposite": false
                 }

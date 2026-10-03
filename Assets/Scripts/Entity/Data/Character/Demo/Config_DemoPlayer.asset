@@ -14,4 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Entity.Runtime::CharacterConfigSO
   MaxHealth: 100
   FaithCapacity: 67
+  FaithLossPerHit: 5
+  FaithGainPerEnemyHit: 5
+  FaithGainPerEnemyKill: 10
+  FactionId: 1
   WeaponCapacity: 5

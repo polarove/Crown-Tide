@@ -2,6 +2,7 @@
     "name": "Entity.Runtime",
     "rootNamespace": "",
     "references": [
+        "Unity.ugui",
         "Unity.InputSystem"
     ],
     "includePlatforms": [],
