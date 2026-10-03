@@ -279,7 +279,7 @@ public sealed class EntityBrain : MonoBehaviour
     public bool HasSoulOut => ActivePossession != null && ReferenceEquals(ActivePossession.Origin, this);
 
     /// <summary>固有主动技能：与槽位技能共用释放门禁；两个效果必须角色正确且没有玩法载荷。</summary>
-    public bool TryBeginPossession(Entity target, PossessionEffect possessionEffect, PossessionEffect? soulOutEffect = null)
+    public bool TryBeginPossession(Entity target, PossessionEffect? possessionEffect, PossessionEffect? soulOutEffect = null)
     {
         Entity? host = Entity;
         if (host == null || target == null || target == host || possessionEffect == null || soulOutEffect == null
