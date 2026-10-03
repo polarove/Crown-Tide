@@ -45,6 +45,25 @@ Keep nullable analysis enabled (`Assets/csc.rsp`, `Directory.Build.props`); use 
 
 Keep Data focused on configuration and runtime values, Logic on gameplay decisions, and Presentation on display. Route damage through `EntityBrain.TakeDamage`. Keep shared ScriptableObject templates separate from per-entity runtime state.
 
+### Unity 对象判空：强制规则
+
+- 对 `UnityEngine.Object` 及其派生类型（如 `MonoBehaviour`、`ScriptableObject`、`Transform`、`InputActionAsset`），必须使用 Unity 的 `== null`／`!= null` 判断有效性；禁止用 `?.`、`??`、`??=` 处理这些对象的判空、回退或初始化。
+- 原因：Unity 原生对象销毁后，C# 包装引用可能仍非空；上述运算符不调用 Unity 重载的判空逻辑。这是对象生命周期语义问题，不是 VS Code 与 Unity 的语法兼容问题。
+- 同样不要用 `is null`、`is not null` 或 `ReferenceEquals` 代替 Unity 对象有效性检查。引用以接口／`object` 类型保存时，普通 `!= null` 也不会自动调用 Unity 重载；需识别实际 Unity 对象并通过 `UnityEngine.Object` 类型检查其有效性。
+- 普通 C# 对象可以使用这些运算符；可空类型标注（如 `InputActionAsset?`）继续保留，不能与 `?.` 混淆。`!` 仅抑制可空警告，不能修复运行时空引用或已销毁对象。
+- 编写与审查代码时检查接收对象的类型，不能仅以 VS Code 无报错或 Unity 编译通过判定写法安全；涉及生命周期的修复需覆盖对象销毁后的行为。
+
+正确写法示例（对应对象均为 Unity 对象）：
+
+```csharp
+InputActionAsset? template = InputSystem.actions != null ? InputSystem.actions : FallbackActions;
+ViewTransform = ViewTransform != null ? ViewTransform : view;
+if (Brain != null)
+{
+    Brain.Execute();
+}
+```
+
 ## Testing Guidelines
 
 Use Unity Test Framework/NUnit: EditMode for data rules; PlayMode for component interactions. Name tests descriptively, following existing Chinese behavior-based names. Add relevant regression coverage for gameplay changes; no numeric coverage threshold is configured. Report tests actually run and failures separately from visual verification.

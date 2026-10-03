@@ -196,7 +196,7 @@ public sealed class GameSettingsTests
     }
 
     [UnityTest]
-    public IEnumerator 绑定同步相机和附身身体_新实例也获得存档_保存失败回滚()
+    public IEnumerator 绑定同步相机和角色_新实例也获得存档_保存失败回滚()
     {
         var shoulder = Entry("SwitchShoulder");
         Assert.IsTrue(Settings.Bindings!.TryRebind(shoulder, "<Keyboard>/g", "Keyboard&Mouse"));
@@ -212,8 +212,7 @@ public sealed class GameSettingsTests
         yield return null;
         Assert.AreEqual(-side, Rig.CurrentShoulderSide);
         InputSystem.QueueStateEvent(Keys, new KeyboardState());
-        PlayerInputSource source = Player.Brain.PlayerSource!;
-        Assert.IsTrue(Player.Brain.TryBeginPossession(Enemy, source.DebugPossessionEffect, source.DebugSoulOutEffect));
+        Enemy.Brain.BindInputSource(Enemy.Brain.PlayerSource);
         yield return null;
         yield return null;
         Pair(Enemy);
@@ -223,7 +222,6 @@ public sealed class GameSettingsTests
         reload.Register(newCopy);
         Assert.AreEqual("<Keyboard>/j", newCopy.FindAction("Jump").bindings[0].effectivePath);
         UnityEngine.Object.Destroy(newCopy);
-        Enemy.Brain.Modifiers.Tick(11f);
         yield return null;
         Assert.IsTrue(Player.Brain.InputSource is PlayerInputSource);
         Assert.AreEqual("<Keyboard>/j", Player.GetComponent<PlayerInput>().actions.FindAction("Jump").bindings[0].effectivePath);
@@ -281,6 +279,42 @@ public sealed class GameSettingsTests
         yield return Click(Button("ConfirmQuit"));
         Assert.AreEqual(1, exit.Calls);
         InputSystem.QueueStateEvent(Pad, new GamepadState());
+    }
+
+    [UnityTest]
+    public IEnumerator 武器技能UI改绑_旧V失效_新键释放_保存后仍显示第三槽冷却()
+    {
+        new CrownEvent(Player, 1).Invoke();
+        Settings.SetOpen(true);
+        Button("KeyboardTab").onClick.Invoke();
+        Button("Binding 武器技能").onClick.Invoke();
+        InputSystem.QueueStateEvent(Keys, new KeyboardState(Key.G));
+        float deadline = Time.realtimeSinceStartup + 2f;
+        while (Settings.Bindings!.IsRebinding && Time.realtimeSinceStartup < deadline) yield return null;
+        Assert.IsFalse(Settings.Bindings!.IsRebinding);
+        Assert.AreEqual("<Keyboard>/g", Player.GetComponent<PlayerInput>().actions.FindAction("WeaponSkill").bindings[0].effectivePath);
+        Settings.SetOpen(false);
+        InputSystem.QueueStateEvent(Keys, new KeyboardState());
+        yield return null;
+        yield return null;
+        InputSystem.QueueStateEvent(Keys, new KeyboardState(Key.V));
+        yield return null;
+        yield return null;
+        Assert.IsNull(Player.LastSkillCast, "改绑后旧 V 不再触发技能或切换操作者");
+        InputSystem.QueueStateEvent(Keys, new KeyboardState());
+        yield return null;
+        InputSystem.QueueStateEvent(Keys, new KeyboardState(Key.G));
+        yield return null;
+        yield return null;
+        Assert.AreEqual(Assets.Scripts.Entity.Data.Skill.EnumSkillType.Weapon, Player.LastSkillCast!.Value.Kind);
+        Assert.Greater(Player.Slots.Skills.WeaponCooldownRemaining, 0f);
+        Assert.IsTrue(Player.Brain.InputSource is PlayerInputSource);
+        Assert.IsTrue(Enemy.Brain.InputSource is AITreeInputSource);
+        using var reload = new InputBindingSettings(Template, Store);
+        Assert.AreEqual("<Keyboard>/g", reload.Actions.FindAction("WeaponSkill").bindings[0].effectivePath);
+        Text[] texts = UnityEngine.Object.FindObjectsByType<Text>();
+        Assert.IsTrue(Array.Exists(texts, text => text.text.Contains("G 武器技能：冷却")), "第三行显示当前改绑与剩余冷却");
+        InputSystem.QueueStateEvent(Keys, new KeyboardState());
     }
 
     [UnityTest]

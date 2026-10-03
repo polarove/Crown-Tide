@@ -39,6 +39,10 @@ public class WeaponSO : ScriptableObject
     [Tooltip("双持出招表（以本武器为主手时生效）；空 = 回退用单持表（可双持但动画不分单双的轻武器适用）")]
     public WeaponComboGraph? ComboGraphDual;
 
+    [Header("武器主动技能（第三槽）")]
+    [Tooltip("当前武器类型对应的主动技能；Kind 必须为 Weapon。共享模板只读。") ]
+    public SkillSO? SpecialSkill;
+
     [Header("护甲套装联动")]
     [Tooltip("指定护甲套装；武器暂不计入护甲件数（计数规则待确认）")]
     public ArmorSetSO? Set;

@@ -45,7 +45,7 @@ public sealed class EntityVisual : MonoBehaviour
         Controller = GetComponent<CharacterController>();
     }
 
-    // Canvas 只读渲染：角色头顶投影到屏幕，屏幕尺寸变化与附身换相机后每帧刷新。
+    // Canvas 只读渲染：角色头顶投影到屏幕，屏幕尺寸变化与切换相机后每帧刷新。
     private void LateUpdate()
     {
         if (!IsDebugPanelVisible || Entity == null)
@@ -216,19 +216,8 @@ public sealed class EntityVisual : MonoBehaviour
         string weaponLine = DescribeWeapon();
         string armorLine = DescribeArmor();
         string inputLine = brain.InputSource != null ? brain.InputSource.GetType().Name : "无（站桩）";
-        // 附身状态（buff 驱动：载体的剩余时长就是会话剩余时间，无需任何会话管理器）。
-        // 两种身份只读展示；已有会话时禁止嵌套附身。
-        string possessionLine = "";
-        if (Entity.IsPossessing)
-        {
-            possessionLine += $"\n附身中｜剩余 {Entity.PossessionRemaining:0.0}s（到期自动换回）";
-        }
-        if (Entity.HasSoulOut)
-        {
-            possessionLine += "\n灵魂出窍中（操作权在别处）";
-        }
         string castLine = Entity.LastSkillCast is { } cast
-            ? $"\n上次释放 {(cast.Kind == Assets.Scripts.Entity.Data.Skill.EnumSkillType.Crown ? "冠冕" : "潮汐")}·{(cast.IsBurst ? "强化" : "普通")}｜归零前信心 {cast.FaithBeforeCast}"
+            ? $"\n上次释放 {(cast.Kind == Assets.Scripts.Entity.Data.Skill.EnumSkillType.Weapon ? "武器" : cast.Kind == Assets.Scripts.Entity.Data.Skill.EnumSkillType.Crown ? "冠冕" : "潮汐")}·{(cast.IsBurst ? "强化" : "普通")}｜释放前信心 {cast.FaithBeforeCast}"
             : "";
         string aiLine = brain.AiSource != null
             ? $"\nAI 普攻配置 {(brain.AiSource.EnableMeleeAttack ? "开启" : "关闭")}"
@@ -238,6 +227,7 @@ public sealed class EntityVisual : MonoBehaviour
             $"\n水平速度 {horizontalSpeed:F2} m/s｜竖直速度 {velocity.y:F2} m/s" +
             $"\n状态机 {machineState}{attackLine}" +
             $"\n生命 {Entity.Vitals.CurrentHp:0}/{Entity.Vitals.MaxHp:0}｜信心 {Entity.Vitals.Faith?.Current ?? 0}/±{Entity.Vitals.FaithCapacity}" +
+            (Entity.IsPossessed ? $"\n绿血 {Entity.Vitals.CurrentGreenHp:0}/{Entity.Vitals.MaxGreenHp:0}｜被附身 {Entity.PossessionRemaining:0.0}s" : Entity.IsPossessing ? "\n本体附身中" : "") +
             $"\n冠冕 {DescribeSkill(Assets.Scripts.Entity.Data.Skill.EnumSkillType.Crown)}｜潮汐 {DescribeSkill(Assets.Scripts.Entity.Data.Skill.EnumSkillType.Tide)}" +
             $"\n冠冕吸血 {brain.Modifiers.GetCrownLifeStealRatio():P0}{castLine}" +
             aiLine +
@@ -245,7 +235,7 @@ public sealed class EntityVisual : MonoBehaviour
             $"\n标签 {Entity.Tags.Describe()}" +
             $"\n{weaponLine}" +
             $"\n{armorLine}" +
-            possessionLine;
+            $"\n武器技能 {DescribeSkill(Assets.Scripts.Entity.Data.Skill.EnumSkillType.Weapon)}";
     }
 
     private string DescribeSkill(Assets.Scripts.Entity.Data.Skill.EnumSkillType kind)

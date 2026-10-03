@@ -16,6 +16,9 @@ namespace Assets.Scripts.Entity.Data.Weapon
         /// </summary>
         Fist = 0,
 
+        /// <summary>机制验证用木棍。</summary>
+        WoodenStick = 1,
+
         /// <summary>
         /// 匕首
         /// </summary>

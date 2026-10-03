@@ -49,21 +49,3 @@ MonoBehaviour:
       serializedVersion: 2
       m_Bits: 0
     IncludeTriggers: 0
-  HasShoot: 0
-  ShootEntry:
-    Name: 
-    Windup: 0
-    Hit: 0
-    Recovery: 0
-    NextEntry: 0
-    CancelWindow: 0
-    MeleeDamage: 0
-    HitShape: 0
-    HitRadius: 0
-    HitAngle: 0
-    HitHeight: 0
-    HitOffset: {x: 0, y: 0, z: 0}
-    HitLayers:
-      serializedVersion: 2
-      m_Bits: 0
-    IncludeTriggers: 0

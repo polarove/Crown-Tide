@@ -7,7 +7,7 @@
             "id": "d1c95232-3842-4d9f-a18c-f5effb8e6511",
             "actions": [
                 {
-                    "name": "Possess",
+                    "name": "WeaponSkill",
                     "type": "Button",
                     "id": "243c5b2d-43c8-47a2-b530-2f566bc30936",
                     "expectedControlType": "Button",
@@ -97,16 +97,6 @@
                     "priority": 0
                 },
                 {
-                    "name": "Aim",
-                    "type": "Button",
-                    "id": "e3f4a5b6-c7d8-4e9f-8a0b-1c2d3e4f5a6b",
-                    "expectedControlType": "Button",
-                    "processors": "",
-                    "interactions": "",
-                    "initialStateCheck": true,
-                    "priority": 0
-                },
-                {
                     "name": "CrownSkill",
                     "type": "Button",
                     "id": "a2f1a936-d29b-4f7e-baff-138d3664e11b",
@@ -135,7 +125,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "Keyboard&Mouse",
-                    "action": "Possess",
+                    "action": "WeaponSkill",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
@@ -146,7 +136,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "Gamepad",
-                    "action": "Possess",
+                    "action": "WeaponSkill",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
@@ -356,28 +346,6 @@
                     "processors": "",
                     "groups": "Gamepad",
                     "action": "Attack",
-                    "isComposite": false,
-                    "isPartOfComposite": false
-                },
-                {
-                    "name": "",
-                    "id": "f5a6b7c8-d9e0-4f1a-8b2c-3d4e5f6a7b8c",
-                    "path": "<Mouse>/rightButton",
-                    "interactions": "",
-                    "processors": "",
-                    "groups": "Keyboard&Mouse",
-                    "action": "Aim",
-                    "isComposite": false,
-                    "isPartOfComposite": false
-                },
-                {
-                    "name": "",
-                    "id": "a7b8c9d0-e1f2-4a3b-9c4d-5e6f7a8b9c0d",
-                    "path": "<Gamepad>/leftTrigger",
-                    "interactions": "",
-                    "processors": "",
-                    "groups": "Gamepad",
-                    "action": "Aim",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },

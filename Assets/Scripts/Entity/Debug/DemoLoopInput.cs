@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-/// <summary>机制验证场景快捷键；与角色死亡／附身状态独立。</summary>
+/// <summary>机制验证场景快捷键；与角色死亡状态独立。</summary>
 [RequireComponent(typeof(DemoLoopReset))]
 public sealed class DemoLoopInput : MonoBehaviour
 {

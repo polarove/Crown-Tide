@@ -124,8 +124,6 @@ public sealed class FaithSkillRuntimeTests
         Assert.IsFalse(Host.Brain.TryCastSkill(EnumSkillType.Crown, out _));
         Assert.AreEqual(67, Host.Vitals.Faith.Current);
         Assert.AreEqual(0f, Host.Slots.Skills.CrownCooldownRemaining);
-        skill.Effects = new[] { Asset<PossessionEffect>() };
-        Assert.IsFalse(Host.Brain.TryCastSkill(EnumSkillType.Crown, out _));
         Host.Brain.TakeDamage(999f);
         Assert.IsFalse(Host.Brain.TryCastSkill(EnumSkillType.Crown, out _));
         Assert.IsNull(Host.Brain.LastSkillCast);

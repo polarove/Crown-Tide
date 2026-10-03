@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.UI;
+using UnityEngine.InputSystem;
 
 /// <summary>演示战斗反馈：只读资源、动作与实际生命变更；自持UI、范围线和外观，不写玩法数据。</summary>
 [RequireComponent(typeof(Entity))]
@@ -28,6 +29,7 @@ public sealed class EntityCombatVisual : MonoBehaviour
     private MaterialPropertyBlock TintBlock = null!;
     private readonly List<Popup> Popups = new();
     private float PreviousHp;
+    private float PreviousGreenHp;
     private float FlashUntil;
     private Color FlashColor;
     private static readonly List<Rect> PlacedPanels = new();
@@ -69,13 +71,27 @@ public sealed class EntityCombatVisual : MonoBehaviour
     private void OnEnable()
     {
         PreviousHp = Host.Vitals.CurrentHp;
+        PreviousGreenHp = Host.Vitals.CurrentGreenHp;
         Host.Vitals.HpChanged += OnHpChanged;
+        Host.Vitals.GreenHpChanged += OnGreenHpChanged;
     }
 
     private void OnHpChanged(CharacterVitals vitals)
     {
         float delta = vitals.CurrentHp - PreviousHp;
         PreviousHp = vitals.CurrentHp;
+        ShowHealthDelta(delta);
+    }
+
+    private void OnGreenHpChanged(CharacterVitals vitals)
+    {
+        float delta = vitals.CurrentGreenHp - PreviousGreenHp;
+        PreviousGreenHp = vitals.CurrentGreenHp;
+        if (Host.IsPossessed) ShowHealthDelta(delta);
+    }
+
+    private void ShowHealthDelta(float delta)
+    {
         if (Mathf.Approximately(delta, 0f)) return; // 满血治疗不展示虚假的回血量。
         LastHpDelta = delta;
         FlashColor = delta > 0f ? HealColor : DamageColor;
@@ -114,7 +130,7 @@ public sealed class EntityCombatVisual : MonoBehaviour
         Skills = MakeText("Skills", Panel, 14);
         Skills.alignment = TextAnchor.UpperLeft;
         RectTransform hpBack = MakeImage("HP Background", Panel, new Color(.18f, .22f, .27f)).rectTransform;
-        HealthFill = MakeImage("HP Fill", hpBack, new Color(.1f, .55f, .38f)).rectTransform;
+        HealthFill = MakeImage("HP Fill", hpBack, new Color(.65f, .15f, .18f)).rectTransform;
         RectTransform faithBack = MakeImage("Faith Background", Panel, new Color(.18f, .22f, .27f)).rectTransform;
         FaithFill = MakeImage("Faith Fill", faithBack, CrownColor).rectTransform;
         Place(hpBack, 10f, 31f, 220f, 19f);
@@ -122,7 +138,7 @@ public sealed class EntityCombatVisual : MonoBehaviour
         Place(Title.rectTransform, 10f, 5f, 220f, 22f);
         Place(Health.rectTransform, 10f, 31f, 220f, 19f);
         Place(Faith.rectTransform, 10f, 54f, 220f, 19f);
-        Place(Skills.rectTransform, 10f, 78f, 220f, 58f);
+        Place(Skills.rectTransform, 10f, 78f, 220f, 78f);
         // 标签最后渲染，避免被条形遮住；信心零点及双方技能阈值均可见。
         Title.transform.SetAsLastSibling();
         Health.transform.SetAsLastSibling();
@@ -134,7 +150,8 @@ public sealed class EntityCombatVisual : MonoBehaviour
         var rangeObject = new GameObject("Attack Range");
         rangeObject.transform.SetParent(transform, false);
         Range = rangeObject.AddComponent<LineRenderer>();
-        Shader shader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default");
+        Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
+        if (shader == null) shader = Shader.Find("Sprites/Default");
         RangeMaterial = new Material(shader);
         Range.sharedMaterial = RangeMaterial;
         Range.useWorldSpace = true;
@@ -189,7 +206,7 @@ public sealed class EntityCombatVisual : MonoBehaviour
     {
         EnsureVisuals();
         bool controlled = Host.HasPlayerView;
-        Color bodyColor = controlled ? PlayerColor : Host.HasSoulOut ? new Color(.35f, .6f, .8f) : EnemyColor;
+        Color bodyColor = controlled ? PlayerColor : EnemyColor;
         for (int i = 0; i < Body.Length; i++)
         {
             if (Body[i] == null) continue;
@@ -232,18 +249,24 @@ public sealed class EntityCombatVisual : MonoBehaviour
 
     private void RefreshStatus(bool controlled)
     {
-        Title.text = Host.IsDead ? "已倒下 · Backspace 重来" : controlled ? "你正在控制" : Host.HasSoulOut ? "原角色 · 附身中" : name == "Enemy" ? "敌人" : name;
+        Title.text = !Host.CanOperate ? "已倒下 · Backspace 重来"
+            : Host.IsPossessed ? $"被附身 · {Host.PossessionRemaining:0.0}s"
+            : Host.IsPossessing ? "本体 · 附身中" : controlled ? "你正在控制" : name == "Enemy" ? "敌人" : name;
         Title.color = controlled ? PlayerColor : EnemyColor;
-        Health.text = $"生命 {Host.Vitals.CurrentHp:0.#} / {Host.Vitals.MaxHp:0.#}";
+        float hp = Host.IsPossessed ? Host.Vitals.CurrentGreenHp : Host.Vitals.CurrentHp;
+        float maximum = Host.IsPossessed ? Host.Vitals.MaxGreenHp : Host.Vitals.MaxHp;
+        Health.text = $"{(Host.IsPossessed ? "绿血" : "生命")} {hp:0.#} / {maximum:0.#}";
+        HealthFill.GetComponent<Image>().color = Host.IsPossessed ? new Color(.1f, .65f, .35f) : new Color(.65f, .15f, .18f);
         Faith.text = $"信心 {Host.Vitals.Faith?.Current ?? 0:+0;-0;0}";
-        Place(HealthFill, 0f, 0f, 220f * Mathf.Clamp01(Host.Vitals.CurrentHp / Host.Vitals.MaxHp), 19f);
+        Place(HealthFill, 0f, 0f, 220f * (maximum > 0f ? Mathf.Clamp01(hp / maximum) : 0f), 19f);
         float fraction = Mathf.Clamp((float)(Host.Vitals.Faith?.Current ?? 0) / Mathf.Max(1, Host.Vitals.FaithCapacity), -1f, 1f);
         Place(FaithFill, 110f + Mathf.Min(0f, fraction) * 110f, 0f, Mathf.Abs(fraction) * 110f, 19f);
         FaithFill.GetComponent<Image>().color = fraction < 0f ? TideColor : CrownColor;
         if (controlled)
         {
-            Skills.text = SkillStatus(EnumSkillType.Crown, "Q / RB 冠冕") + "\n" + SkillStatus(EnumSkillType.Tide, "E / Y 潮汐");
-            string special = "V / LB 附身 · Backspace 重来";
+            Skills.text = SkillStatus(EnumSkillType.Crown, SkillLabel("CrownSkill", "冠冕")) + "\n" + SkillStatus(EnumSkillType.Tide, SkillLabel("TideSkill", "潮汐"))
+                + "\n" + SkillStatus(EnumSkillType.Weapon, SkillLabel("WeaponSkill", "武器技能"));
+            string special = "Backspace 重来";
             if (Host.Brain.Modifiers.GetCrownLifeStealRatio() > 0f)
             {
                 float remaining = 0f;
@@ -259,14 +282,20 @@ public sealed class EntityCombatVisual : MonoBehaviour
                     }
                 special = remaining > 0f && !permanent ? $"冠冕吸血 {remaining:0.0}s · 命中回血" : "冠冕吸血中 · 命中才回血";
             }
-            if (Host.IsPossessing)
-            {
-                special = $"附身剩余 {Host.PossessionRemaining:0.0}s";
-            }
             Skills.text += "\n" + special;
         }
         else Skills.text = Host.Brain.StateMachine.GetActive(EnumStateLayer.Action) is EntityAttackState attack
             ? attack.PhaseIndex == 0 ? "准备攻击" : attack.PhaseIndex == 1 ? "挥击" : "收招" : "";
+    }
+
+    private string SkillLabel(string actionName, string label)
+    {
+        UnityEngine.InputSystem.PlayerInput input = Host.GetComponent<UnityEngine.InputSystem.PlayerInput>();
+        if (input == null || input.actions == null) return label;
+        UnityEngine.InputSystem.InputAction action = input.actions.FindAction(actionName);
+        if (action == null) return label;
+        string group = input.currentControlScheme == "Gamepad" ? "Gamepad" : "Keyboard&Mouse";
+        return action.GetBindingDisplayString(group: group) + " " + label;
     }
 
     private string SkillStatus(EnumSkillType kind, string label)
@@ -275,7 +304,9 @@ public sealed class EntityCombatVisual : MonoBehaviour
         if (cooldown > 0f) return $"{label}：冷却 {cooldown:0.0}s";
         if (Host.Brain.Capability.CanCastSkill(kind))
             return label + (Host.Slots.Skills.IsBurstReady(kind, Host.Vitals.Faith) ? "：强化可用" : "：可释放");
-        if ((long)(int)kind * (Host.Vitals.Faith?.Current ?? 0) < skill.FaithThreshold)
+        if (kind == EnumSkillType.Weapon && (Host.Vitals.Faith?.Current ?? 0) == 0)
+            return label + "：需非零信心";
+        if (kind != EnumSkillType.Weapon && (long)(int)kind * (Host.Vitals.Faith?.Current ?? 0) < skill.FaithThreshold)
             return $"{label}：需{(int)kind * skill.FaithThreshold:+0;-0;0}";
         return label + "：当前状态不可用";
     }
@@ -290,7 +321,7 @@ public sealed class EntityCombatVisual : MonoBehaviour
         HeadLink.gameObject.SetActive(visible && !DebugSystem.IsEnabled);
         if (!visible) return;
         float scale = Overlay!.scaleFactor;
-        float height = (controlled ? 140f : 102f) * scale;
+        float height = (controlled ? 160f : 102f) * scale;
         float width = 240f * scale;
         Rect bounds = view.pixelRect;
         Rect rect = new(Mathf.Clamp(controlled ? head.x - width - 18f * scale : head.x + 18f * scale,
@@ -321,7 +352,7 @@ public sealed class EntityCombatVisual : MonoBehaviour
         EntityAttackState? attack = Host.Brain.StateMachine.GetActive(EnumStateLayer.Action) as EntityAttackState;
         WeaponComboGraph? graph = Host.Slots.CurrentComboGraph;
         ComboEntry entry = attack != null ? attack.CurrentEntry : graph != null && graph.ComboEntries != null && graph.ComboEntries.Length > 0 ? graph.ComboEntries[0] : default;
-        Range.enabled = !Host.IsDead && (controlled || attack != null) && entry.IsHitVolumeValid() && entry.HitShape == EnumMeleeHitShape.Sector;
+        Range.enabled = Host.CanOperate && (controlled || attack != null) && entry.IsHitVolumeValid() && entry.HitShape == EnumMeleeHitShape.Sector;
         if (!Range.enabled) return;
         Vector3 forward = attack != null ? transform.forward : Host.Commands.LookDirection;
         forward.y = 0f;
@@ -343,6 +374,7 @@ public sealed class EntityCombatVisual : MonoBehaviour
     private void OnDisable()
     {
         Host.Vitals.HpChanged -= OnHpChanged;
+        Host.Vitals.GreenHpChanged -= OnGreenHpChanged;
         if (Overlay != null) Overlay.enabled = false;
         if (Range != null) Range.enabled = false;
         foreach (Popup popup in Popups) if (popup.Label != null) Destroy(popup.Label.gameObject);

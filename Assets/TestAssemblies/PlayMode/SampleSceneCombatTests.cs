@@ -16,10 +16,10 @@ public sealed class SampleSceneCombatTests
     }
 
     [UnityTest]
-    public IEnumerator 鼠标攻击真实扣血_附身后命中原角色信心降低() => VerifyInputAttack(false);
+    public IEnumerator 鼠标攻击真实扣血_V武器技能保持控制权() => VerifyInputAttack(false);
 
     [UnityTest]
-    public IEnumerator 手柄攻击真实扣血_附身后命中原角色信心降低() => VerifyInputAttack(true);
+    public IEnumerator 手柄攻击真实扣血_V武器技能保持控制权() => VerifyInputAttack(true);
 
     private static IEnumerator VerifyInputAttack(bool useGamepad)
     {
@@ -61,33 +61,19 @@ public sealed class SampleSceneCombatTests
 
             if (useGamepad) InputSystem.QueueStateEvent(gamepad, new GamepadState().WithButton(GamepadButton.LeftShoulder));
             else InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.V));
-            float possessionWait = 0f;
-            while (!(enemy.Brain.InputSource is PlayerInputSource) && possessionWait < 2f)
+            float weaponWait = 0f;
+            while (player.LastSkillCast == null && weaponWait < 2f)
             {
-                possessionWait += Time.deltaTime;
+                weaponWait += Time.deltaTime;
                 yield return null;
             }
             InputSystem.QueueStateEvent(keyboard, new KeyboardState());
             InputSystem.QueueStateEvent(gamepad, new GamepadState());
-            InputAction possessAction = input.actions.FindAction("Possess");
-            Assert.IsTrue(enemy.Brain.InputSource is PlayerInputSource,
-                $"scheme={input.currentControlScheme}, devices={string.Join(",", input.devices)}, " +
-                $"possessEnabled={possessAction.enabled}, possessValue={possessAction.ReadValue<float>()}, " +
-                $"V={keyboard.vKey.isPressed}, canUse={player.Brain.Capability.CanUseSkill()}, " +
-                $"candidate={EntityBrain.FindPossessionCandidate(player)?.name}, " +
-                $"source={player.Brain.InputSource?.GetType().Name}, soulOut={player.Brain.HasSoulOut}");
-            Assert.IsTrue(player.Brain.HasSoulOut);
-            Assert.AreEqual(1, player.Config.FactionId, "附身不改变本体阵营");
-            Assert.AreEqual(2, enemy.Config.FactionId);
-            Pair(enemy.GetComponent<PlayerInput>(), keyboard, mouse, gamepad, useGamepad);
-            float playerBefore = player.Vitals.CurrentHp;
-            int faithBefore = player.Vitals.Faith.Current;
-            PressAttack(mouse, gamepad, useGamepad, true);
-            yield return WaitForHit(player, playerBefore);
-            PressAttack(mouse, gamepad, useGamepad, false);
-            Assert.AreEqual(playerBefore - 3f, player.Vitals.CurrentHp);
-            Assert.AreEqual(faithBefore - 5, player.Vitals.Faith.Current);
-            Assert.AreEqual(0, enemy.Vitals.Faith!.Current, "本体先受击 -5，再命中敌方本体 +5");
+            Assert.AreEqual(Assets.Scripts.Entity.Data.Skill.EnumSkillType.Weapon, player.LastSkillCast!.Value.Kind);
+            Assert.IsTrue(player.Brain.InputSource is PlayerInputSource);
+            Assert.IsTrue(enemy.Brain.InputSource is AITreeInputSource);
+            yield return WaitForHit(enemy, enemyBefore - 3f);
+            Assert.Greater(player.Slots.Skills.WeaponCooldownRemaining, 0f);
         }
         finally
         {

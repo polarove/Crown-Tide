@@ -6,14 +6,14 @@ using UnityEngine;
 /// <summary>
 /// 角色大脑（Brain 层）：全实体唯一 Update 的编排者——"怎么做"的每帧答案。
 /// 旧 NpcController.Update 管线平移（语义逐条保真），门禁从散落的 CC 层检查统一进 Capability：
-/// 1 帧首重置电平指令（输入源沉默 = 站桩，附身切换帧安全）；
-/// 2 输入源采集（玩家/AI 汇流同一 CommandBuffer；"指令翻译成什么"也在这里——瞄准+攻击=射击）；
+/// 1 帧首重置电平指令（输入源沉默 = 站桩，输入源切换帧安全）；
+/// 2 输入源采集（玩家/AI 汇流同一 CommandBuffer）；
 /// 3 修饰列表步进（投影先于状态机 = 失控当帧压制；帧末施加的效果次帧压制）+ 技能冷却步进；
 /// 4 死亡门（清边沿指令 return；不用 enabled=false——那会杀掉网络回调，多人纪律）；
 /// 5 地面检测 → 6 主动作消费（起手当帧进前摇）→ 7 状态机两遍 Tick（水平移动/连段推进）
 /// → 8 跳跃消费 → 9 重力 → 10 转向；可选指令模块在输入采集后由接口接入。
 /// 输入源绑定：控制状态的唯一真相 = InputSource（is PlayerInputSource 即玩家驱动）；
-/// Entity.startPlayerControlled 只决定开局绑定，双源同挂物体、运行时切换只换绑定（V / LB 附身演示）。
+/// Entity.startPlayerControlled 只决定开局绑定，双源同挂物体、运行时切换只换绑定。
 /// deltaTime 全链传参（换 NetworkTime/固定 tick 只改本类取时一处——网络时间纪律）。
 /// </summary>
 [RequireComponent(typeof(EntityMotor))]
@@ -108,20 +108,13 @@ public sealed class EntityBrain : MonoBehaviour
         machine.ChangeState(target);
     }
 
-    // 两输入源组件（双源同挂是附身演示的前提；缺失对应源时该侧绑定失败并警告）
+    // 两输入源组件（双源保留统一输入接缝；缺失对应源时该侧绑定失败并警告）
     public PlayerInputSource? PlayerSource;
     public AITreeInputSource? AiSource;
     private bool WarnedMissingSource;
 
-    // 首帧附身唯一性自检标记（一次性）
-    private bool CheckedPossessionUniqueness;
-
-    // 附身会话/死亡视点/技能快照已拆归 Entity（审视 #7：编排者不收异质状态）。
-    // 下面只留只读转发，保既有调用点（表现层/测试）稳定——新代码请直接读 Entity 的对应属性。
-    public bool IsPossessing => Entity?.IsPossessing ?? false;
-    public float PossessionRemaining => Entity?.PossessionRemaining ?? 0f;
-    public bool HasSoulOut => Entity?.HasSoulOut ?? false;
-    public bool HasPlayerView => Entity?.HasPlayerView ?? InputSource is PlayerInputSource;
+    // 首帧玩家输入唯一性自检标记（一次性）
+    private bool CheckedInputUniqueness;
 
     /// <summary>首帧自检：提示"多个玩家驱动实体共享本地输入设备"的单机现象。
     /// 多人语义（需求钦定）：玩家驱动 = Brain.InputSource 是 PlayerInputSource——多人下
@@ -141,7 +134,7 @@ public sealed class EntityBrain : MonoBehaviour
             {
                 Debug.LogWarning($"{name} 与 {other.name} 都由玩家驱动：多人下这是常态" +
                     "（各自设备配对/网络中继）；但单机调试会共享键盘一起动——若非有意分屏，" +
-                    "请检查是否多勾了 startPlayerControlled（控制权转移用 V / LB）");
+                    "请检查是否多勾了 startPlayerControlled");
             }
         }
     }
@@ -168,16 +161,13 @@ public sealed class EntityBrain : MonoBehaviour
     /// </summary>
     public void Bootstrap(Entity entity)
     {
-        EndPossession();
         if (Entity != null)
         {
-            Entity.Vitals.Died -= OnDied;
+            PossessionLogic.OnUnavailable(Entity);
             Entity.Slots.EquipmentChanged -= OnEquipmentChanged;
         }
         Entity = entity;
-        entity.DeathView = false;
         entity.LastSkillCast = null;
-        Entity.Vitals.Died += OnDied;
 
         Entity.Motor.Initialize();
         Entity.Vitals.Initialize(entity.Config);
@@ -213,6 +203,7 @@ public sealed class EntityBrain : MonoBehaviour
 
         // 覆盖 Inspector 预配的初始装备：开局穿在身上的套装档位立即生效（变更驱动，不占每帧管线）
         ArmorSets.Sync();
+        WeaponSkillBinding.Sync(entity);
 
     }
 
@@ -222,10 +213,10 @@ public sealed class EntityBrain : MonoBehaviour
     /// 调用后"是否玩家控制"以 InputSource is PlayerInputSource 为准；
     /// 启用被绑定源、停用其余（SendMessage 不看组件 enabled，源内部还有 bound 守门双保险）。
     /// 回落目标 AI 源未挂时警告一次并保持无输入（站桩）</summary>
-    public void BindInputSource(IInputSource? inputSource)
+    public void BindInputSource(IInputSource? inputSource, bool preserveAction = false)
     {
-        var target = inputSource ?? AiSource;
-        if (target == null)
+        IInputSource? target = IsInputSourceAlive(inputSource) ? inputSource : AiSource;
+        if (!IsInputSourceAlive(target))
         {
             if (!WarnedMissingSource)
             {
@@ -236,7 +227,7 @@ public sealed class EntityBrain : MonoBehaviour
         }
 
         // 更换操作者时取消旧主动动作，避免接管后继续执行上一操作者发起的攻击。
-        if (!ReferenceEquals(InputSource, target)) StateMachine?.ClearState(EnumStateLayer.Action);
+        if (!preserveAction && !ReferenceEquals(InputSource, target)) StateMachine?.ClearState(EnumStateLayer.Action);
         // 先落字段再通知：控制状态唯一真相 = InputSource（读方如 CameraRig 据此判"谁在驱动"）
         InputSource = target;
         Commands.ResetLevels();
@@ -248,119 +239,42 @@ public sealed class EntityBrain : MonoBehaviour
         if (ReferenceEquals(target, PlayerSource))
         {
             PlayerSource!.Activate();
-            AiSource?.Deactivate();
+            if (AiSource != null) AiSource.Deactivate();
             return;
         }
         if (ReferenceEquals(target, AiSource))
         {
             AiSource!.Activate();
-            PlayerSource?.Deactivate();
+            if (PlayerSource != null) PlayerSource.Deactivate();
             return;
         }
 
         // 第三方源（网络输入中继等）：双源组件都让位
-        PlayerSource?.Deactivate();
-        AiSource?.Deactivate();
+        if (PlayerSource != null) PlayerSource.Deactivate();
+        if (AiSource != null) AiSource.Deactivate();
     }
 
-    // ---- 附身会话（buff 驱动，无专门管理器）----
-    //
-    // 需求钦定：附身会话**用 buff 表达**——挂上「被附身」buff = 会话开始，摘掉 = 会话结束。
-    // 于是：倒计时由 ModifierList 的 Duration 免费提供；判定条件也是 buff 在场
-    //（有 Possessed = 身体已被占用；有 SoulOut = 我已在附身中），不依赖任何场景级单例，
-    // 多人下各客户端用同一套规则就能初步裁决"能不能附身"。
-    // Brain 共用技能门禁，保存双方关联，在载体失效时归还控制权并清理双方。
-
-    // PossessionLink 已提出为顶级 internal 类（PossessionLink.cs，审视 #7）；
-    // 关联存储在双方 Entity.ActivePossession 上，查询走 Entity / 上面的只读转发。
-
-    /// <summary>固有主动技能：与槽位技能共用释放门禁；两个效果必须角色正确且没有玩法载荷。</summary>
-    public bool TryBeginPossession(Entity target, PossessionEffect? possessionEffect, PossessionEffect? soulOutEffect = null)
+    // 接口可能包裹 Unity 组件；CLR 非空不代表 Unity 对象仍然存在。
+    private static bool IsInputSourceAlive(IInputSource? source)
     {
-        Entity? host = Entity;
-        if (host == null || target == null || target == host || possessionEffect == null || soulOutEffect == null
-            || !isActiveAndEnabled || !target.Brain.isActiveAndEnabled
-            || target.IsDead || !Capability.CanUseSkill(possessionEffect.AllowWhileControlled)
-            || InputSource == null || target.Brain.InputSource is PlayerInputSource
-            || target.Brain.PlayerSource == null || host.ActivePossession != null || target.ActivePossession != null
-            || Modifiers.GetHeld<IPossessionEffect>() != null || target.Brain.Modifiers.GetHeld<IPossessionEffect>() != null
-            || possessionEffect.PossessionRole != EnumPossessionRole.Possessed
-            || soulOutEffect.PossessionRole != EnumPossessionRole.SoulOut
-            || !IsPurePossessionEffect(possessionEffect) || !IsPurePossessionEffect(soulOutEffect)
-            || possessionEffect.Duration <= 0f || float.IsNaN(possessionEffect.Duration) || float.IsInfinity(possessionEffect.Duration))
-        {
-            return false;
-        }
-
-        var link = new PossessionLink(this, target.Brain, possessionEffect, soulOutEffect);
-        target.Brain.Modifiers.Apply(possessionEffect);
-        Modifiers.Apply(soulOutEffect, 0f); // 永久实例；不修改共享模板，也不信任旧演示标记的时长。
-        host.ActivePossession = link;
-        target.ActivePossession = link;
-        host.DeathView = false;
-        BindInputSource(AiSource);
-        target.Brain.BindInputSource(link.OriginalInput is PlayerInputSource ? target.Brain.PlayerSource : target.Brain.AiSource);
-        return true;
+        return source != null && (source is not UnityEngine.Object unityObject || unityObject != null);
     }
 
-    private static bool IsPurePossessionEffect(PossessionEffect effect)
+    private void OnEquipmentChanged()
     {
-        return !effect.HasControl && !effect.HasPeriodic && (effect.StatModifiers == null || effect.StatModifiers.Length == 0)
-            && effect.GrantedTag == EnumEntityTag.None && effect.FaithDeltaPerTick == 0
-            && effect.CrownLifeStealRatio == 0f;
+        ArmorSets.Sync();
+        WeaponSkillBinding.Sync(Entity!);
     }
 
-    /// <summary>任一侧可调用；只延长本次目标效果，不修改资产。</summary>
-    public bool ExtendPossession(float seconds)
-    {
-        PossessionLink? link = Entity?.ActivePossession;
-        return link != null && link.IsValid && link.Target.Modifiers.ExtendDuration(link.Carrier, seconds);
-    }
-
-    /// <summary>异常/强制结束入口；V / LB 不调用它，不允许玩家中途退出。</summary>
-    public void EndPossession()
-    {
-        // 周期伤害中死亡时不能在效果列表遍历中移除条目；Tick 后立即收尾。
-        PossessionLink? link = Entity?.ActivePossession;
-        if (link != null && !link.Origin.Modifiers.IsTicking && !link.Target.Modifiers.IsTicking) link.End();
-    }
-
-    private void ReconcilePossession(ModifierList modifiers)
-    {
-        PossessionLink? link = Entity?.ActivePossession;
-        if (link != null && !link.IsValid) EndPossession();
-    }
-
-    private void OnDied(CharacterVitals vitals) => EndPossession();
-    private void OnEquipmentChanged() => ArmorSets.Sync();
-    private void OnDisable() => EndPossession();
     private void OnDestroy()
     {
-        EndPossession();
-        if (Entity != null)
-        {
-            Entity.Vitals.Died -= OnDied;
-            Entity.Slots.EquipmentChanged -= OnEquipmentChanged;
-        }
+        if (Entity != null) PossessionLogic.OnUnavailable(Entity);
+        if (Entity != null) Entity.Slots.EquipmentChanged -= OnEquipmentChanged;
     }
 
-    /// <summary>
-    /// 场景里的附身候选：另一个非玩家驱动、存活、且身上没有「被附身」buff 的实体。
-    /// 多人纪律：绝不抢已被占用的身体（buff 判定）。FindObjectsByType 只在调试/选目标入口跑，不上玩法路径
-    /// </summary>
-    public static Entity? FindPossessionCandidate(Entity self)
+    private void OnDisable()
     {
-        foreach (Entity candidate in FindObjectsByType<Entity>())
-        {
-            if (candidate == self || candidate.IsDead
-                || candidate.Brain.InputSource is PlayerInputSource                     // 别的玩家在操作
-                || candidate.Brain.Modifiers.GetHeld<IPossessionEffect>() != null)      // 已被附身占用
-            {
-                continue;
-            }
-            return candidate;
-        }
-        return null;
+        if (Entity != null) PossessionLogic.OnUnavailable(Entity);
     }
 
     // 帧内顺序（勿调整），语义对照见类头注释
@@ -380,9 +294,9 @@ public sealed class EntityBrain : MonoBehaviour
         }
 
         // 0.5) 首帧自检（一次性）：多个玩家驱动实体 = 装配事故（见方法注释）
-        if (!CheckedPossessionUniqueness)
+        if (!CheckedInputUniqueness)
         {
-            CheckedPossessionUniqueness = true;
+            CheckedInputUniqueness = true;
             WarnIfMultiplePlayerControlled(host);
         }
 
@@ -394,26 +308,24 @@ public sealed class EntityBrain : MonoBehaviour
         if (GameSettingsController.IsGameplayInputBlocked)
         {
             commands.ClearEdges();
-            PlayerSource?.ResetPausedInput();
+            if (PlayerSource != null) PlayerSource.ResetPausedInput();
             return;
         }
 
-        ReconcilePossession(modifiers); // 输入采集前处理失效双方或已移除效果。
 
         // 2) 输入源采集（玩家/AI 汇流；无输入源 = 全零站桩）
-        InputSource?.GatherCommands(commands);
+        if (IsInputSourceAlive(InputSource)) InputSource!.GatherCommands(commands);
         CommandModule?.GatherCommands(host, commands);
 
         // 3) 修饰列表（时长/周期跳伤/CC 投影）+ 技能冷却步进
         modifiers.Tick(deltaTime);
+        PossessionLogic.Reconcile(host);
         host.Slots.Skills.TickCooldown(deltaTime);
 
-        // 3.5) 附身会话：buff 是唯一真相——摘掉「被附身」buff 即会话结束（Duration 到期自动摘）
-        ReconcilePossession(modifiers);
 
         // 4) 死亡门：周期跳伤致死当帧冻结余下管线（尸体站桩）。
         //    清边沿防"复活瞬间残留的跳/攻击请求"；每帧清幂等，成本可忽略
-        if (host.Vitals.IsDead)
+        if (!host.CanOperate)
         {
             commands.ClearEdges();
             return;
@@ -440,40 +352,17 @@ public sealed class EntityBrain : MonoBehaviour
 
     }
 
-    /// <summary>主动作消费：攻击边沿（含瞄准射击翻译与连段留置）+ 技能边沿（双闸门）。
+    /// <summary>主动作消费：攻击边沿（含连段留置）+ 技能边沿（双闸门）。
     /// 全部指令不区分来源——玩家按键与 AI 决策写的是同一个缓冲。
     /// host/commands/machine/modifiers 由 Update 的局部传入（已非空收窄），方法体内无需判空</summary>
     private void TryConsumeAction(Entity host, CommandBuffer commands, EntityStateMachine machine, ModifierList modifiers)
     {
-        // 固有附身与普通技能走同一门禁；输入源只提出请求。
-        if (commands.PossessionQueued)
-        {
-            commands.PossessionQueued = false;
-            PlayerInputSource? source = PlayerSource;
-            Entity? target = FindPossessionCandidate(host);
-            if (source != null && target != null && source.DebugPossessionEffect != null)
-            {
-                TryBeginPossession(target, source.DebugPossessionEffect, source.DebugSoulOutEffect);
-            }
-            if (HasSoulOut) return;
-        }
-
         // ---- 攻击：Action 层空闲时起手并消费；攻击中留给 AttackState.Tick 的续段判定 ----
         if (commands.AttackQueued && machine.GetActive(EnumStateLayer.Action) == null)
         {
             if (Capability.CanAct())
             {
-                WeaponComboGraph? comboGraph = host.Slots.CurrentComboGraph;
-                if (commands.AimActive && comboGraph != null && comboGraph.HasShoot)
-                {
-                    // 连招翻译（需求示例：瞄准+射击）：瞄准电平 + 攻击边沿 → 射击变体（单发段）。
-                    // 翻译在消费点不在输入源——AI 输入源自动同享规则，不漂移
-                    AttackState.BeginSingle(comboGraph.ShootEntry);
-                }
-                else
-                {
-                    AttackState.BeginCombo();
-                }
+                AttackState.BeginCombo();
                 FaceAttackDirection();
                 machine.ChangeState(AttackState);
             }
@@ -489,7 +378,7 @@ public sealed class EntityBrain : MonoBehaviour
     }
 
     /// <summary>最近成功释放的技能快照（存储在 Entity，审视 #7；转发保既有调用点稳定）</summary>
-    public SkillCastResult? LastSkillCast => Entity?.LastSkillCast;
+    public SkillCastResult? LastSkillCast => Entity != null ? Entity.LastSkillCast : null;
 
     /// <summary>玩家与AI共用起手规则；后退移动不覆盖攻击方向。仅成功起手时调用。</summary>
     public void FaceAttackDirection()
@@ -516,13 +405,19 @@ public sealed class EntityBrain : MonoBehaviour
             ? skill.BurstEffects : skill.Effects;
         if (!ValidSkillEffects(effects) || (kind == EnumSkillType.Tide && !ValidSkillEffects(skill.AfterTideEffects)))
             return false;
-        result = new SkillCastResult(kind, faith!.Current, burst);
+        if (skill.PossessionOnKill != null && (!skill.HasAttack || !skill.PossessionOnKill.IsValid)) return false;
+        result = new SkillCastResult(kind, faith != null ? faith.Current : 0, burst);
+        float possessionAmount = skill.PossessionOnKill != null
+            ? Mathf.Abs(result.FaithBeforeCast) * skill.PossessionOnKill.K : 0f;
+        if (skill.PossessionOnKill != null && (possessionAmount <= 0f
+            || float.IsNaN(possessionAmount) || float.IsInfinity(possessionAmount)
+            || possessionAmount / 1000f <= 0f)) return false;
         if (!slots.Consume(kind, faith)) return false;
         if (skill.DispelOnCast != EnumModifierCategory.None) Modifiers.Dispel(skill.DispelOnCast);
         if (skill.HasAttack)
         {
             FaceAttackDirection();
-            AttackState.BeginSingle(attack, kind);
+            AttackState.BeginSingle(attack, kind, skill.PossessionOnKill, possessionAmount);
             StateMachine.ChangeState(AttackState);
         }
         foreach (ModifierEffect effect in effects) Modifiers.Apply(effect);
@@ -537,9 +432,7 @@ public sealed class EntityBrain : MonoBehaviour
         if (effects == null) return false;
         foreach (ModifierEffect effect in effects)
         {
-            // 附身必须通过双侧会话入口，普通技能不能单独施加附身标记。
-            if (effect == null || effect is IPossessionEffect
-                || float.IsNaN(effect.Duration) || float.IsInfinity(effect.Duration)) return false;
+            if (effect == null || float.IsNaN(effect.Duration) || float.IsInfinity(effect.Duration)) return false;
         }
         return true;
     }
@@ -572,7 +465,7 @@ public sealed class EntityBrain : MonoBehaviour
         // 装配门 + 收窄成局部（伤害入口可能被场景里的其他实体在装配中途调用）
         ModifierList? modifiers = Modifiers;
         Entity? host = Entity;
-        if (host == null || modifiers == null || host.Vitals.IsDead || rawAmount <= 0f
+        if (host == null || modifiers == null || !host.CanOperate || rawAmount <= 0f
             || float.IsNaN(rawAmount) || float.IsInfinity(rawAmount))
         {
             return;
@@ -592,35 +485,46 @@ public sealed class EntityBrain : MonoBehaviour
             * modifiers.GetStatMultiplier(EnumStatType.DamageTaken)
             * swingMultiplier;
         if (final <= 0f || float.IsNaN(final) || float.IsInfinity(final)) return;
-        host.Vitals.ApplyDamage(final);
+        if (host.IsPossessed) host.Vitals.ApplyGreenDamage(final);
+        else host.Vitals.ApplyDamage(final);
 
         // 受击与周期伤害分开：Debuff 的信心事件由效果显式配置，避免一次跳伤双算。
-        int faithLoss = host.Config?.FaithLossPerHit ?? 0;
+        int faithLoss = host.Config != null ? host.Config.FaithLossPerHit : 0;
         if (countsAsHit && faithLoss > 0)
         {
             new TideEvent(host, faithLoss).Invoke();
         }
+        PossessionLogic.Reconcile(host);
     }
 
     /// <summary>命中结算接缝。敌我关系由调用方传入，不能根据当前输入源猜测阵营。
     /// 普通近战状态已接入；信心量读配置，吸血仅冠冕命中使用实际损失生命。</summary>
-    public float ResolveHit(Entity target, float rawAmount, bool enemyHit, EnumSkillType? skillKind = null)
+    public float ResolveHit(Entity target, float rawAmount, bool enemyHit, EnumSkillType? skillKind = null,
+        PossessionProfileSO? possessionProfile = null, float possessionAmount = 0f)
     {
-        if (Entity == null || Entity.IsDead || target == null || target == Entity || target.IsDead
+        if (Entity == null || !Entity.CanOperate || target == null || target == Entity || !target.CanOperate
             || rawAmount <= 0f || float.IsNaN(rawAmount) || float.IsInfinity(rawAmount)) return 0f;
-        float before = target.Vitals.CurrentHp;
+        bool wasAlive = !target.IsDead;
+        bool green = target.IsPossessed;
+        float before = green ? target.Vitals.CurrentGreenHp : target.Vitals.CurrentHp;
         target.Brain.TakeDamage(rawAmount * Modifiers.GetStatMultiplier(EnumStatType.DamageDealt));
-        float dealt = before - target.Vitals.CurrentHp;
+        float dealt = before - (green ? target.Vitals.CurrentGreenHp : target.Vitals.CurrentHp);
         if (dealt <= 0f) return 0f;
         if (enemyHit)
         {
-            int hitGain = Entity.Config?.FaithGainPerEnemyHit ?? 0;
-            int killGain = target.IsDead ? Entity.Config?.FaithGainPerEnemyKill ?? 0 : 0;
+            int hitGain = Entity.Config != null ? Entity.Config.FaithGainPerEnemyHit : 0;
+            int killGain = wasAlive && target.IsDead && Entity.Config != null ? Entity.Config.FaithGainPerEnemyKill : 0;
             if (hitGain > 0) new CrownEvent(Entity, hitGain).Invoke();
             if (killGain > 0) new CrownEvent(Entity, killGain).Invoke();
         }
         if (skillKind == EnumSkillType.Crown)
-            Entity.Vitals.ApplyHeal(dealt * Modifiers.GetCrownLifeStealRatio());
+        {
+            float healing = dealt * Modifiers.GetCrownLifeStealRatio();
+            if (Entity.IsPossessed) Entity.Vitals.ApplyGreenHeal(healing);
+            else Entity.Vitals.ApplyHeal(healing);
+        }
+        if (wasAlive && target.IsDead && enemyHit && skillKind == EnumSkillType.Weapon && possessionProfile != null)
+            PossessionLogic.TryBeginKilled(Entity, target, possessionProfile, possessionAmount);
         return dealt;
     }
 }

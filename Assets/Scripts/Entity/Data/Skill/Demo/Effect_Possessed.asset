@@ -9,20 +9,22 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 87486d61717279c4293ab7a67606c08f, type: 3}
-  m_Name: PossessionEffect
-  m_EditorClassIdentifier: Entity.Runtime::PossessionEffect
-  Name: "\u65B0\u6548\u679C"
-  Category: 2
-  Duration: 3
+  m_Script: {fileID: 11500000, guid: 890a268d6c483c64aac1e7cbf23b23b1, type: 3}
+  m_Name: Effect_Possessed
+  m_EditorClassIdentifier: Entity.Runtime::ModifierEffect
+  Name: "\u88AB\u9644\u8EAB"
+  Category: 1
+  Duration: 10
   StackPolicy: 1
-  MaxStacks: 1
+  MaxStacks: 3
   HasControl: 0
   ControlPriority: 0
-  ControlKind: 0
+  ControlKind: 1
   StatModifiers: []
   HasPeriodic: 0
   TickInterval: 1
-  DamagePerTick: 0
+  DamagePerTick: 5
+  FaithDeltaPerTick: 0
+  FaithTickInterval: 0
+  CrownLifeStealRatio: 0
   GrantedTag: 0
-  PossessionRole: 2

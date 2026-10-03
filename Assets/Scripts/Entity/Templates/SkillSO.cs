@@ -10,7 +10,7 @@ public class SkillSO : ScriptableObject
     public EnumSkillType Kind = EnumSkillType.Crown;
 
     [Header("释放条件")]
-    [Min(1), Tooltip("信心阈值幅度；冠冕 ≥ 此值，潮汐 ≤ -此值")]
+    [Min(1), Tooltip("信心阈值幅度；冠冕 ≥ 此值，潮汐 ≤ -此值；Weapon 不使用")]
     public int FaithThreshold = 33;
 
     [Tooltip("显式允许被控制期间释放，供解控技能配置")]
@@ -23,7 +23,10 @@ public class SkillSO : ScriptableObject
     public bool HasAttack;
     public ComboEntry Attack;
 
-    [Tooltip("满信心使用独立攻击段；关闭时沿用普通段")]
+    [Tooltip("仅本次攻击造成红血真实击杀时附身；空 = 普通技能。配置在起手时快照")]
+    public PossessionProfileSO? PossessionOnKill;
+
+    [Tooltip("冠冕/潮汐满信心使用独立攻击段；Weapon 始终普通段")]
     public bool UseBurstAttack;
     public ComboEntry BurstAttack;
 

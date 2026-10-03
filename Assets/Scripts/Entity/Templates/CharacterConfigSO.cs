@@ -17,7 +17,7 @@ public class CharacterConfigSO : ScriptableObject
     public int FaithCapacity = 67;
 
     [Min(0), Tooltip("受击时潮汐事件降低信心的幅度（配正数；0 = 关闭）。" +
-             "受伤动摇信心、不问伤害来源——被自己附身的怪打、多人被队友误伤同规则；" +
+             "受伤动摇信心、不问伤害来源——被敌人命中、多人被队友误伤同规则；" +
              "贴边 -FaithCapacity 自然封底，潮汐大技能就在这条负向通道上攒")]
     public int FaithLossPerHit = 5;
 
@@ -27,7 +27,7 @@ public class CharacterConfigSO : ScriptableObject
     [Min(0), Tooltip("击杀敌怪额外冠冕事件量；0 = 尚未配置")]
     public int FaithGainPerEnemyKill;
 
-    [Tooltip("本体阵营标识；0 = 未指定。两个非零且不同的阵营视为敌对；附身换输入源不改变阵营")]
+    [Tooltip("本体阵营标识；0 = 未指定。两个非零且不同的阵营视为敌对；输入源不改变阵营")]
     public int FactionId;
 
     [Header("手部容量")]

@@ -10,7 +10,7 @@ using UnityEngine.InputSystem;
 /// - 奔跑加速（新增）：Entity.IsSprinting（Logic 只读）→ FOV 平滑拉大，速度感呈现。
 /// 结构：挂在相机物体上、持 Entity 引用——相机属于实体（玩家/敌人各有一台，不全局找——
 /// 多人纪律：每玩家自己的相机，spawn 系统指派）；LateUpdate 独立节拍（表现层不参与仿真顺序）。
-/// 附身切换不动相机：只读感知 Brain.InputSource is PlayerInputSource（控制状态唯一真相），
+/// 输入源切换不动相机：只读感知 Brain.InputSource is PlayerInputSource（控制状态唯一真相），
 /// 自己的实体被玩家驱动才亮（Camera/AudioListener 同开同关）——控制权转移后旧相机自动熄灭、
 /// 接管者的相机自动亮起，切换的是"谁的相机在看"。
 /// 视角基准注入：把自身 Transform 填给宿主 Entity 的 PlayerInputSource.viewTransform
@@ -112,7 +112,7 @@ public sealed class CameraRig : MonoBehaviour
             return;
         }
 
-        // PlayerInput 附身解绑时会关闭自己的动作表。相机只暂停渲染，不会再次 OnEnable，
+        // PlayerInput 解绑时会关闭自己的动作表。相机只暂停渲染，不会再次 OnEnable，
         // 因此必须持有独立动作实例，不能让角色输入开关影响视角输入的生命周期。
         LocalInputActions = Instantiate(InputActionAsset);
         LocalInputActions.bindingMask = null;
@@ -195,7 +195,7 @@ public sealed class CameraRig : MonoBehaviour
         }
     }
 
-    /// <summary>相机激活同步（附身感知的执行端）：Camera/AudioListener 同开同关——
+    /// <summary>相机激活同步（输入源感知的执行端）：Camera/AudioListener 同开同关——
     /// 同一时刻只有玩家驱动实体的相机在渲染（多台同亮会叠画面 + 双 AudioListener 警告）。
     /// 本组件自身永不禁用：熄灭的相机还要每帧感知"控制权回来了没"</summary>
     private void SyncCameraActive(bool active)
@@ -241,10 +241,9 @@ public sealed class CameraRig : MonoBehaviour
 
         // 相机激活感知（只读纪律，零事件耦合）：相机属于实体——仅当自己的实体正被玩家驱动
         // （Brain.InputSource is PlayerInputSource，控制状态唯一真相）时才亮。
-        // V / LB 控制权转移后旧相机自动熄灭、接管者的相机自动亮起——切换的是"谁的相机在看"，
         // 相机本身不动、不换跟随目标。多人接缝：分屏下多个玩家相机并亮即是分屏，
         // 将来按"驱动本实体的是本玩家吗"细化（各自设备配对/网络中继）
-        // 原角色死亡收尾保留视角，但 Brain 不再绑定玩家操作。
+        // 死亡保留当前角色视角，玩法动作由 Brain 的死亡门拒绝。
         bool playerDriven = FollowEntity.HasPlayerView;
         SyncCameraActive(playerDriven);
         if (!playerDriven)

@@ -91,18 +91,18 @@ public sealed class DebugPresentationTests
     }
 
     [UnityTest]
-    public IEnumerator 键盘V_Debug关闭时也能附身()
+    public IEnumerator 键盘V_Debug关闭时也能释放武器技能()
     {
-        return VerifyPossessionInput(useGamepad: false);
+        return VerifyWeaponSkillInput(useGamepad: false);
     }
 
     [UnityTest]
-    public IEnumerator 手柄LB_Debug关闭时也能附身()
+    public IEnumerator 手柄LB_Debug关闭时也能释放武器技能()
     {
-        return VerifyPossessionInput(useGamepad: true);
+        return VerifyWeaponSkillInput(useGamepad: true);
     }
 
-    private static IEnumerator VerifyPossessionInput(bool useGamepad)
+    private static IEnumerator VerifyWeaponSkillInput(bool useGamepad)
     {
         using var focus = new SimulatedInputFocusScope();
         DebugSystem.SetEnabled(false);
@@ -117,9 +117,10 @@ public sealed class DebugPresentationTests
             GameObject[] roots = scene.GetRootGameObjects();
             Entity player = System.Array.Find(roots, go => go.name == "Player").GetComponent<Entity>();
             Entity enemy = System.Array.Find(roots, go => go.name == "Enemy").GetComponent<Entity>();
+            new CrownEvent(player, 1).Invoke();
             PlayerInput input = player.GetComponent<PlayerInput>();
             input.neverAutoSwitchControlSchemes = true;
-            InputAction action = input.actions.FindAction("Player/Possess", throwIfNotFound: true);
+            InputAction action = input.actions.FindAction("Player/WeaponSkill", throwIfNotFound: true);
             Assert.IsTrue(System.Array.Exists(action.bindings.ToArray(), binding => binding.path == "<Keyboard>/v"));
             Assert.IsTrue(System.Array.Exists(action.bindings.ToArray(), binding => binding.path == "<Gamepad>/leftShoulder"));
             if (useGamepad)
@@ -134,8 +135,8 @@ public sealed class DebugPresentationTests
             }
             yield return null;
             yield return null;
-            Assert.IsTrue(player.Brain.HasSoulOut);
-            Assert.IsTrue(enemy.Brain.InputSource is PlayerInputSource);
+            Assert.AreEqual(Assets.Scripts.Entity.Data.Skill.EnumSkillType.Weapon, player.LastSkillCast!.Value.Kind);
+            Assert.IsTrue(enemy.Brain.InputSource is AITreeInputSource);
             Assert.IsFalse(DebugSystem.IsEnabled);
             InputSystem.QueueStateEvent(gamepad, new GamepadState());
             InputSystem.QueueStateEvent(keyboard, new KeyboardState());

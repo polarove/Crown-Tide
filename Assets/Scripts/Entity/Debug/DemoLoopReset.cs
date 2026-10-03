@@ -32,8 +32,6 @@ public sealed class DemoLoopReset : MonoBehaviour
     {
         bool wasActive = SceneManager.GetActiveScene() == scene;
         GameObject[] roots = scene.GetRootGameObjects();
-        foreach (GameObject root in roots)
-            foreach (Entity entity in root.GetComponentsInChildren<Entity>(true)) entity.Brain.EndPossession();
         // 旧角色先停止输入／相机，避免新场景装配期间两套角色同时响应。
         foreach (GameObject root in roots)
             if (root != gameObject) root.SetActive(false);

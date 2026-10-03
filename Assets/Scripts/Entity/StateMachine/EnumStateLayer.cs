@@ -10,6 +10,7 @@ public enum EnumStateLayer
     Aerial = 1,         // 竖直姿态：Grounded/Air（起跳/离地/落地判定）
     Action = 2,         // 主动动作：攻击（连段）/将来的闪避/蓄力
     CrowdControl = 3,   // 失控：眩晕/将来的冰冻石化，压制其余全部层
+    Possession = 4,     // 附身身份；不占用 Action，不改变移动/技能的普通条件
 }
 
 /// <summary>

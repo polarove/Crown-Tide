@@ -27,7 +27,7 @@ public abstract class FaithEvent
 
     public bool Invoke()
     {
-        if (Invoked || Target == null || Target.IsDead || Target.Vitals.Faith == null || Delta == 0)
+        if (Invoked || Target == null || !Target.CanOperate || Target.Vitals.Faith == null || Delta == 0)
             return false;
         Invoked = true;
         Target.Vitals.Faith.Update(Delta);

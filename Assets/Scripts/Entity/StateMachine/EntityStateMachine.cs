@@ -31,6 +31,14 @@ public sealed class EntityStateMachine
         return state != null && Active[(int)state.Layer] == state;
     }
 
+    /// <summary>身份查询不依赖层是否被暂时压制，失控不会丢失附身身份。</summary>
+    public bool HasState<T>() where T : EntityState
+    {
+        foreach (EntityState? state in Active)
+            if (state is T) return true;
+        return false;
+    }
+
     /// <summary>
     /// 初始化并进入各层初始状态（Brain.Bootstrap 调用一次）。
     /// 每层至多一个初始状态；同层重复传入时保留先者并警告。

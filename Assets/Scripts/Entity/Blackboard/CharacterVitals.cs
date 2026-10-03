@@ -31,7 +31,33 @@ public sealed class CharacterVitals : MonoBehaviour
     public float CurrentHp { get; private set; }
 
     /// <summary>是否已死亡（死亡幂等门；Brain 管线据此拦截）</summary>
-    public bool IsDead { get; private set; }
+    public bool IsDead => CurrentHp <= 0f;
+
+    /// <summary>独立绿血事实；初始化、扣除和结束规则由外部逻辑选择，不反查状态。</summary>
+    public float CurrentGreenHp { get; private set; }
+    public float MaxGreenHp { get; private set; }
+    public event Action<CharacterVitals>? GreenHpChanged;
+
+    public void SetGreenHealth(float maximum)
+    {
+        if (maximum <= 0f || float.IsNaN(maximum) || float.IsInfinity(maximum)) return;
+        MaxGreenHp = CurrentGreenHp = maximum;
+        GreenHpChanged?.Invoke(this);
+    }
+
+    public void ApplyGreenDamage(float amount)
+    {
+        if (amount <= 0f || float.IsNaN(amount) || float.IsInfinity(amount) || CurrentGreenHp <= 0f) return;
+        CurrentGreenHp = Mathf.Max(0f, CurrentGreenHp - amount);
+        GreenHpChanged?.Invoke(this);
+    }
+
+    public void ApplyGreenHeal(float amount)
+    {
+        if (amount <= 0f || float.IsNaN(amount) || float.IsInfinity(amount) || CurrentGreenHp <= 0f) return;
+        CurrentGreenHp = Mathf.Min(MaxGreenHp, CurrentGreenHp + amount);
+        GreenHpChanged?.Invoke(this);
+    }
 
     /// <summary>最大生命（config 活值直读；未配置默认 100——Play 模式改资产即时生效，不回填当前值）</summary>
     public float MaxHp => Config != null ? Config.MaxHealth : float.MaxValue;
@@ -41,20 +67,20 @@ public sealed class CharacterVitals : MonoBehaviour
 
     /// <summary>初始化（Entity.Awake → Brain.Bootstrap 调用一次）：满血、信心居中 0。
     /// characterConfig 可空（未配角色配置）：MaxHp/FaithCapacity 走内置兜底。
-    /// 重复调用（测试/复活预留）会重置 HP 与信心值并清除死亡态</summary>
+    /// 仅用于出生装配／测试重置；玩法不调用本入口复活死者。</summary>
     public void Initialize(CharacterConfigSO? characterConfig)
     {
         Config = characterConfig;
         CurrentHp = MaxHp;
         Faith = new SkillResource(this, 0);   // 初始居中：未达到任一技能的信心阈值。
-        IsDead = false;
+        MaxGreenHp = CurrentGreenHp = 0f;
     }
 
     /// <summary>受到伤害（唯一扣血写口）：只收"调用侧算好的终值"，钳到 [0, MaxHp]。
     /// 死亡幂等：已死直接忽略。amount <= 0 忽略（治疗走 ApplyHeal）</summary>
     public void ApplyDamage(float finalAmount)
     {
-        if (IsDead || finalAmount <= 0f)
+        if (IsDead || finalAmount <= 0f || float.IsNaN(finalAmount) || float.IsInfinity(finalAmount))
         {
             return;
         }
@@ -63,7 +89,6 @@ public sealed class CharacterVitals : MonoBehaviour
         HpChanged?.Invoke(this);
         if (CurrentHp <= 0f)
         {
-            IsDead = true;
             Died?.Invoke(this);
         }
     }
@@ -71,7 +96,7 @@ public sealed class CharacterVitals : MonoBehaviour
     /// <summary>治疗（唯一回血写口）：钳到 [0, MaxHp]；已死忽略（复活功能后置，到时走 Initialize 重置）</summary>
     public void ApplyHeal(float amount)
     {
-        if (IsDead || amount <= 0f)
+        if (IsDead || amount <= 0f || float.IsNaN(amount) || float.IsInfinity(amount))
         {
             return;
         }

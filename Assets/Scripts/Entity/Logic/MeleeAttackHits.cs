@@ -17,9 +17,9 @@ public sealed class MeleeAttackHits
         Revision++;
     }
 
-    public void Sample(ComboEntry entry, EnumSkillType? skillKind = null)
+    public void Sample(ComboEntry entry, EnumSkillType? skillKind = null, PossessionProfileSO? possessionProfile = null, float possessionAmount = 0f)
     {
-        if (Attacker == null || Attacker.IsDead || !Attacker.isActiveAndEnabled
+        if (Attacker == null || !Attacker.CanOperate || !Attacker.isActiveAndEnabled
             || entry.MeleeDamage <= 0f || float.IsNaN(entry.MeleeDamage) || float.IsInfinity(entry.MeleeDamage)
             || !entry.IsHitVolumeValid()) return;
         Vector3 center = Attacker.transform.TransformPoint(entry.HitOffset);
@@ -31,14 +31,14 @@ public sealed class MeleeAttackHits
             : Query.Overlap(center, entry.HitRadius, entry.HitLayers, entry.IncludeTriggers, out colliders);
         for (int i = 0; i < count; i++)
         {
-            if (revision != Revision || Attacker.IsDead) return;
+            if (revision != Revision || !Attacker.CanOperate) return;
             Entity? target = colliders[i] != null ? colliders[i].GetComponentInParent<Entity>() : null;
-            if (target == null || target == Attacker || target.IsDead || !target.isActiveAndEnabled
+            if (target == null || target == Attacker || !target.CanOperate || !target.isActiveAndEnabled
                 || !HitTargets.Add(target)) continue;
-            int sourceFaction = Attacker.Config?.FactionId ?? 0;
-            int targetFaction = target.Config?.FactionId ?? 0;
+            int sourceFaction = Attacker.Config != null ? Attacker.Config.FactionId : 0;
+            int targetFaction = target.Config != null ? target.Config.FactionId : 0;
             bool enemyHit = sourceFaction != 0 && targetFaction != 0 && sourceFaction != targetFaction;
-            Attacker.Brain.ResolveHit(target, entry.MeleeDamage, enemyHit, skillKind);
+            Attacker.Brain.ResolveHit(target, entry.MeleeDamage, enemyHit, skillKind, possessionProfile, possessionAmount);
         }
     }
 }

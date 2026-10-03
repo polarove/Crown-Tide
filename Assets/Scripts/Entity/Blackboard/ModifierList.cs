@@ -301,9 +301,8 @@ public sealed class ModifierList
     }
 
     /// <summary>
-    /// 按语义取活跃条目里的第一份实现 T 的效果（如 IPossessionEffect）。
+    /// 按语义取活跃条目里的第一份实现 T 的效果。
     /// 只声明"我有这类效果"，具体语义由 T 定义——容器不膨胀成一堆专用开关。
-    /// 典型用法：判"在附身中吗" = GetHeld&lt;IPossessionEffect&gt;() != null
     /// </summary>
     public T? GetHeld<T>() where T : class
     {

@@ -17,11 +17,14 @@ public sealed class CharacterSlotContainer : MonoBehaviour
         + "注意：本字段是 ScriptableObject 引用，不能在此 new——运行时用 ScriptableObject.CreateInstance 或拖资产")]
     public WeaponComboGraph? UnarmedComboGraph;
 
+    [Tooltip("空手拳头的武器主动技能（第三槽）")]
+    public SkillSO? UnarmedWeaponSkill;
+
     [Header("槽位（运行时可由 Logic/调试代码写；Inspector 预配初始装备）")]
     [Tooltip("武器槽：主/副手 + 容量判定 + 出招表解析")]
     public WeaponSlot Weapons = new();
 
-    [Tooltip("技能槽：冠冕/潮汐两位 + 冷却")]
+    [Tooltip("技能槽：冠冕/潮汐/武器三位 + 独立冷却")]
     public SkillSlot Skills = new();
 
     [Tooltip("护甲槽：占位持有")]
@@ -30,8 +33,8 @@ public sealed class CharacterSlotContainer : MonoBehaviour
     [Tooltip("饰品槽：占位持有（Data 层不处理逻辑）")]
     public AccessorySlot Accessories = new();
 
-    /// <summary>当前武器占用的手部容量（空手 = 0；两把都可空，故用 ?.）</summary>
-    public int WeaponCapacityConsumed => (Weapons.MainHand?.Cost ?? 0) + (Weapons.OffHand?.Cost ?? 0);
+    /// <summary>当前武器占用的手部容量（空手 = 0；两把都可空，使用 Unity 判空）</summary>
+    public int WeaponCapacityConsumed => (Weapons.MainHand != null ? Weapons.MainHand.Cost : 0) + (Weapons.OffHand != null ? Weapons.OffHand.Cost : 0);
 
     /// <summary>装备变更事件（表现层/UI 订阅；装备/卸下成功后触发，含初始装配不触发）</summary>
     public event Action? EquipmentChanged;

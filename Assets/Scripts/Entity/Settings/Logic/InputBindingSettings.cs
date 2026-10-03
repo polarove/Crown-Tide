@@ -198,9 +198,9 @@ public sealed class InputBindingSettings : IDisposable
 
     private static string Label(string name) => name switch
     {
-        "Possess" => "附身", "Move" => "移动", "Jump" => "跳跃", "Look" => "视角摇杆",
+        "WeaponSkill" => "武器技能", "Move" => "移动", "Jump" => "跳跃", "Look" => "视角摇杆",
         "SwitchShoulder" => "切换肩侧", "ToggleView" => "切换视角", "Sprint" => "加速",
-        "Attack" => "攻击", "Aim" => "瞄准", "CrownSkill" => "冠冕技能", "TideSkill" => "潮汐技能",
+        "Attack" => "攻击", "CrownSkill" => "冠冕技能", "TideSkill" => "潮汐技能",
         "up" => "前", "down" => "后", "left" => "左", "right" => "右", _ => name
     };
 

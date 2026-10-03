@@ -43,17 +43,12 @@ public static class CreateSceneDemo
         GameObject enemy = BuildEnemy(player.transform);
         CreateCombatDemoAssets.ConfigureEntities(player, enemy);
         PlaceOnPlatform(scene, player, enemy);
-        // 附身资产先建好：下面给玩家调试槽接线要用（幂等）
-        CreateArmorSetDemoAssets.EnsurePossessionEffects();
-        // 相机各属实体：Main Camera 跟玩家、Enemy Camera 跟敌人——附身切换（V / LB）靠各自亮灭互换，不挪相机
         CameraRig playerCamera = ConfigureCameraRig("Main Camera", player);
         CameraRig enemyCamera = ConfigureCameraRig("Enemy Camera", enemy);
         ConfigurePlayerInput(player, isPlayer: true, playerCamera);
         ConfigurePlayerInput(enemy, isPlayer: false, enemyCamera);
         CreateMechanismDemoAssets.Configure(scene, player, enemy);
 
-        // 附身不再需要场景级管理器：会话状态就是 buff——V / LB 时给目标挂「被附身」载体、
-        // 给自己挂「灵魂出窍」标记，EntityBrain 感知 buff 换绑、Duration 到期自动换回
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene);
         AssetDatabase.SaveAssets();
@@ -62,9 +57,6 @@ public static class CreateSceneDemo
             + $"· 玩家「{player.name}」位置 {player.transform.position}（自己操控；已穿演示头盔+胸甲 → 二件档移速 ×1.15）\n"
             + $"· AI「{enemy.name}」位置 {enemy.transform.position}（AITreeInputSource 追击玩家；只戴头盔，1 件不激活档位）\n"
             + "· 相机各属实体：Main Camera 跟玩家、Enemy Camera 跟敌人（F1 切肩 / F2 切第一人称；"
-            + "附身时旧相机熄灭、接管者的相机亮起，不挪相机）\n"
-            + "· 附身（buff 驱动，无管理器）：V / LB 挂「被附身」buff 到目标 + 「灵魂出窍」到自己，"
-            + "Duration 到期自动摘 buff = 自动换回；期间不能中途退出\n"
             + "操作：WASD 移动、Shift 加速、空格跳；调试键 F3~F11 见 PlayerInputSource 头注释");
     }
 
@@ -94,36 +86,24 @@ public static class CreateSceneDemo
         failures += CheckEntity(player, "Player", expectPlayerControlled: true, expectedArmorPieces: 2);
         failures += CheckEntity(enemy, "Enemy", expectPlayerControlled: false, expectedArmorPieces: 1);
 
-        // 相机接线（各属实体：Main Camera 跟玩家、Enemy Camera 跟敌人——附身切换靠亮灭互换）
         CameraRig? rig = camera != null ? camera.GetComponent<CameraRig>() : null;
-        if (rig == null || rig.FollowEntity != player?.GetComponent<Entity>())
+        if (rig == null || player == null || rig.FollowEntity != player.GetComponent<Entity>())
         {
             Debug.LogError("[场景校验] Main Camera 的 CameraRig 未指向玩家 Entity（或组件缺失）");
             failures++;
         }
         CameraRig? enemyRig = enemyCamera != null ? enemyCamera.GetComponent<CameraRig>() : null;
-        if (enemyRig == null || enemyRig.FollowEntity != enemy?.GetComponent<Entity>())
+        if (enemyRig == null || enemy == null || enemyRig.FollowEntity != enemy.GetComponent<Entity>())
         {
             Debug.LogError("[场景校验] Enemy Camera 的 CameraRig 未指向敌人 Entity（或组件缺失）");
             failures++;
         }
 
-        // 附身接线（buff 驱动，无需场景级管理器）：玩家调试槽要挂上两份附身资产，
-        // 否则 V / LB 无从发起。资产由「生成护甲套装演示资产」创建
-        PlayerInputSource? playerInput = player != null ? player.GetComponent<PlayerInputSource>() : null;
-        if (playerInput == null || playerInput.DebugPossessionEffect == null
-            || playerInput.DebugSoulOutEffect == null
-            || playerInput.DebugPossessionEffect.PossessionRole != EnumPossessionRole.Possessed
-            || playerInput.DebugSoulOutEffect.PossessionRole != EnumPossessionRole.SoulOut
-            || playerInput.DebugPossessionEffect.Duration <= 0f || playerInput.DebugSoulOutEffect.Duration > 0f)
-        {
-            Debug.LogError("[场景校验] 玩家 PlayerInputSource 的 DebugPossessionEffect 未配（V / LB 附身不可用）");
-            failures++;
-        }
+
 
         // AI 感知接线
         AITreeInputSource? ai = enemy != null ? enemy.GetComponent<AITreeInputSource>() : null;
-        if (ai == null || ai.Target != player?.transform)
+        if (ai == null || player == null || ai.Target != player.transform)
         {
             Debug.LogError("[场景校验] Enemy 的 AITreeInputSource.Target 未指向玩家");
             failures++;
@@ -232,7 +212,6 @@ public static class CreateSceneDemo
         SetSerialized(enemy.GetComponent<Entity>(), so =>
         {
             RequiredProperty(so, "config", "Config").objectReferenceValue = LoadConfig(CreateArmorSetDemoAssets.EnemyConfigPath);
-            RequiredProperty(so, "startPlayerControlled").boolValue = false;   // 开局绑 AI 输入源（V / LB 可附身接管）
         });
         ConfigureMotor(enemy.GetComponent<EntityMotor>(), walkSpeed: 4f);   // 比玩家慢一点，追得上但不瞬移
         ConfigureArmor(enemy.GetComponent<CharacterSlotContainer>(), "Armor_DemoHead");   // 只 1 件：不激活档位
@@ -247,7 +226,8 @@ public static class CreateSceneDemo
     /// <summary>建实体物体：清旧组件 → 建新组件（Entity 的 RequireComponent 会补齐依赖五件套）</summary>
     private static GameObject NewEntityObject(string name, Vector3 position)
     {
-        Transform? existing = FindInScene(EditorSceneManager.GetActiveScene(), name)?.transform;
+        GameObject? existingObject = FindInScene(EditorSceneManager.GetActiveScene(), name);
+        Transform? existing = existingObject != null ? existingObject.transform : null;
         GameObject go = existing != null ? existing.gameObject : new GameObject(name);
 
         go.name = name;
@@ -267,7 +247,6 @@ public static class CreateSceneDemo
         EnsureComponent<EntityVisual>(go);          // Entity 的依赖里没有它（表现层单独挂）
         EnsureComponent<PlayerInput>(go);           // EntityBrain 要求（AI 实体也挂着，只是禁用）
         EnsureComponent<PlayerInputSource>(go);     // 玩家输入源
-        EnsureComponent<AITreeInputSource>(go);     // AI 输入源（附身切换时两者都要求存在）
 
         return go;
     }
@@ -284,23 +263,12 @@ public static class CreateSceneDemo
 
 
     /// <summary>玩家输入源接线：视角基准（本实体的相机）、输入资源；瞄准/加速动作由 PlayerInput 的 Actions 提供。
-    /// 敌人也接（附身时 ViewTransform/FallbackActions 已就位）</summary>
     private static void ConfigurePlayerInput(GameObject go, bool isPlayer, CameraRig rig)
     {
         PlayerInputSource inputSource = go.GetComponent<PlayerInputSource>();
-        inputSource.ViewTransform = rig.transform;   // 视角基准 = 本实体自己的相机（附身后移动投影随相机走）
         inputSource.FallbackActions = LoadInputActions();
-        if (isPlayer)
-        {
-            // 附身调试槽（buff 驱动，无需场景级管理器）：V / LB 用它们挂 buff
-            inputSource.DebugPossessionEffect =
-                AssetDatabase.LoadAssetAtPath<PossessionEffect>(CreateArmorSetDemoAssets.PossessedEffectPath);
-            inputSource.DebugSoulOutEffect =
-                AssetDatabase.LoadAssetAtPath<PossessionEffect>(CreateArmorSetDemoAssets.SoulOutEffectPath);
-        }
         EditorUtility.SetDirty(inputSource);
 
-        // AI 实体被附身后也必须具有完整 Actions、消息回调与默认动作表。
         PlayerInput playerInput = go.GetComponent<PlayerInput>();
         InputActionAsset? actions = LoadInputActions();
         if (actions != null)
@@ -334,7 +302,6 @@ public static class CreateSceneDemo
     }
 
     /// <summary>相机接线（幂等）：场景里找同名相机，没有就新建（Camera + AudioListener）。
-    /// 相机属于实体——Main Camera 跟玩家、Enemy Camera 跟敌人；附身切换靠各自亮灭，不重指跟随</summary>
     private static CameraRig ConfigureCameraRig(string cameraName, GameObject follow)
     {
         GameObject? cameraObject = FindInScene(EditorSceneManager.GetActiveScene(), cameraName);

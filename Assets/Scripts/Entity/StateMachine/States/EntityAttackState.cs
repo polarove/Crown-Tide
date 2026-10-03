@@ -8,13 +8,13 @@ using Assets.Scripts.Entity.Data.Skill;
 /// 段时长 = 表值 ÷（武器攻速 × AttackSpeed 乘法链，钳下限 0.05 防除零）。
 /// 两种起手（Brain.TryConsumeAction 调用）：
 /// - BeginCombo()：普攻，从连段第 0 段开始，按 nextEntry 链续段；
-/// - BeginSingle(entry)：单发段（瞄准射击变体/蓄力），打完即收招，不续段。
+/// - BeginSingle(entry)：单发段（技能攻击/蓄力），打完即收招，不续段。
 /// 出招表缺失时兜底内置默认节奏（0.15/0.1/0.3 单段）——攻击永远有节奏可用。
 /// LocksMovement 声明锁移动（Locomotion 层的 ApplyLocomotion 消费：站桩贴地）。
 /// 挥剑标记：Enter 挂 / Exit 摘 Swinging 标签——写方只命名不赋义，读方（武器 SO）
 /// 是解释器（挥剑期间受伤乘数，见 WeaponSO.swingDamageTakenMultiplier）。
 /// 失控打断：ModifierList 推 CC 层时会 ClearState(Action)（走 Exit 摘标记）——攻击不会在眩晕后"续播"。
-/// 配置球形近战判定，仅命中窗口采样；同一段按实体去重，续段重新开始。动画／弹道后置。
+/// 配置球形近战判定，仅命中窗口采样；同一段按实体去重，续段重新开始。动画后置。
 /// </summary>
 public sealed class EntityAttackState : EntityState
 {
@@ -37,6 +37,8 @@ public sealed class EntityAttackState : EntityState
     private float Elapsed;              // 段内累积时间（+= deltaTime，不用 Time.time 差值——网络时间纪律）
     private readonly MeleeAttackHits Hits;
     private EnumSkillType? SkillKind;
+    private PossessionProfileSO? PossessionProfile;
+    private float PossessionAmount;
 
     public EntityAttackState(Entity entity, EntityStateMachine machine) : base(entity, machine)
     {
@@ -61,6 +63,7 @@ public sealed class EntityAttackState : EntityState
     public void BeginCombo()
     {
         SkillKind = null;
+        PossessionProfile = null;
         ComboGraph = Entity.Slots.CurrentComboGraph;
         Entries = ComboGraph != null && ComboGraph.ComboEntries != null
             ? (ComboEntry[])ComboGraph.ComboEntries.Clone() : null;
@@ -74,10 +77,12 @@ public sealed class EntityAttackState : EntityState
         ComboIndex = 0;
     }
 
-    /// <summary>单发段起手（瞄准射击变体/将来的蓄力）：打完即收招，不按 nextEntry 续段</summary>
-    public void BeginSingle(ComboEntry entry, EnumSkillType? skillKind = null)
+    /// <summary>单发段起手（技能攻击/将来的蓄力）：打完即收招，不按 nextEntry 续段</summary>
+    public void BeginSingle(ComboEntry entry, EnumSkillType? skillKind = null, PossessionProfileSO? possessionProfile = null, float possessionAmount = 0f)
     {
         SkillKind = skillKind;
+        PossessionProfile = possessionProfile;
+        PossessionAmount = possessionAmount;
         IsSingle = true;
         Single = entry;
     }
@@ -152,7 +157,7 @@ public sealed class EntityAttackState : EntityState
         float hitEnd = hitStart + SafeTime(activeEntry.Hit) * scaleNow;
         // 区间相交而非只检查当前帧：低帧率跨过整个命中窗口也会采样一次。
         if (activeEntry.Hit > 0f && previous < hitEnd && Elapsed >= hitStart)
-            Hits.Sample(activeEntry, SkillKind);
+            Hits.Sample(activeEntry, SkillKind, PossessionProfile, PossessionAmount);
 
         // 续段判定（仅连段模式）：后摇起点起取消窗口内收到攻击请求 → 跳 nextEntry。
         // 攻击中再按攻击键的请求不经 Brain 起手（CanAct 挡 Action 层活跃），

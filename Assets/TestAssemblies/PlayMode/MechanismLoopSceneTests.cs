@@ -118,21 +118,7 @@ public sealed class MechanismLoopSceneTests
         Assert.IsTrue(visual.IsStatusVisible);
     }
 
-    [UnityTest]
-    public IEnumerator 首次附身相机朝载体前方_输入方向属于当前身体()
-    {
-        InputSystem.QueueStateEvent(Keyboard, new KeyboardState(Key.V));
-        yield return WaitFor(() => Enemy.Brain.InputSource is PlayerInputSource, "附身成功");
-        InputSystem.QueueStateEvent(Keyboard, new KeyboardState());
-        Pair(Enemy, false);
-        yield return null;
-        yield return null;
-        Vector3 view = Enemy.Brain.PlayerSource!.ViewTransform!.forward;
-        view.y = 0f;
-        Assert.Less(Vector3.Angle(view, Player.transform.position - Enemy.transform.position), 5f);
-        Assert.Less(Vector3.Angle(view, Enemy.Commands.LookDirection), 1f);
-        yield return Attack(Enemy, Player);
-    }
+
 
     [UnityTest]
     public IEnumerator 保存场景扇形普攻_远处侧前方命中且技能使用同一范围()
@@ -158,19 +144,18 @@ public sealed class MechanismLoopSceneTests
     }
 
     [UnityTest]
-    public IEnumerator 附身真实受击积累负信心_潮汐归零_普攻重积累_冠冕回血()
+    public IEnumerator 真实受击积累负信心_潮汐归零_普攻重积累_冠冕回血()
     {
-        InputSystem.QueueStateEvent(Keyboard, new KeyboardState(Key.V));
-        yield return WaitFor(() => Enemy.Brain.InputSource is PlayerInputSource, "V 应附身敌人");
-        InputSystem.QueueStateEvent(Keyboard, new KeyboardState());
-        Pair(Enemy, false);
-        for (int i = 0; i < 7; i++) yield return Attack(Enemy, Player);
+        for (int i = 0; i < 7; i++)
+        {
+            Enemy.Commands.LookDirection = (Player.transform.position - Enemy.transform.position).normalized;
+            Enemy.Commands.AttackQueued = true;
+            float hpBefore = Player.Vitals.CurrentHp;
+            yield return WaitFor(() => Player.Vitals.CurrentHp < hpBefore, "敌人真实近战受击");
+            yield return Recover(Enemy);
+        }
         Assert.AreEqual(-35, Player.Vitals.Faith!.Current, "负信心全部来自真实近战受击");
         Assert.AreEqual(79f, Player.Vitals.CurrentHp);
-        // 推进同一计时容器到期；此前的到期测试已覆盖真实帧时间。
-        Enemy.Brain.Modifiers.Tick(11f);
-        yield return WaitFor(() => Player.Brain.InputSource is PlayerInputSource, "到期返回原角色");
-        Pair(Player, false);
         PlaceActors();
         float enemyHp = Enemy.Vitals.CurrentHp;
         InputSystem.QueueStateEvent(Keyboard, new KeyboardState(Key.E));
@@ -267,25 +252,7 @@ public sealed class MechanismLoopSceneTests
         Assert.IsTrue(ai.EnableMeleeAttack);
     }
 
-    [UnityTest]
-    public IEnumerator 附身期间重置_双侧效果控制权冷却生命恢复()
-    {
-        InputSystem.QueueStateEvent(Keyboard, new KeyboardState(Key.V));
-        yield return WaitFor(() => Player.Brain.HasSoulOut, "先开始附身");
-        InputSystem.QueueStateEvent(Keyboard, new KeyboardState());
-        Player.Slots.Skills.CrownCooldownRemaining = 9f;
-        Player.Brain.TakeDamage(12f);
-        yield return ResetFromInput();
-        Assert.AreEqual(100f, Player.Vitals.CurrentHp);
-        Assert.AreEqual(200f, Enemy.Vitals.CurrentHp);
-        Assert.AreEqual(0, Player.Vitals.Faith!.Current);
-        Assert.AreEqual(0f, Player.Slots.Skills.CrownCooldownRemaining);
-        Assert.IsFalse(Player.Brain.IsPossessing);
-        Assert.IsFalse(Enemy.Brain.IsPossessing);
-        Assert.IsTrue(Player.Brain.InputSource is PlayerInputSource);
-        Assert.IsTrue(Enemy.Brain.InputSource is AITreeInputSource);
-        Assert.AreEqual(0f, Player.Brain.Modifiers.GetCrownLifeStealRatio());
-    }
+
 
     [UnityTest]
     public IEnumerator 死亡后Menu打开设置_Backspace重置后仍能移动()
@@ -311,6 +278,24 @@ public sealed class MechanismLoopSceneTests
         yield return new WaitForSeconds(.2f);
         InputSystem.QueueStateEvent(Keyboard, new KeyboardState());
         Assert.Greater(Vector3.Distance(before, Player.transform.position), .1f);
+    }
+
+    [UnityTest]
+    public IEnumerator 武器技能冷却中重开_新场景清空冷却并保留拳头技能()
+    {
+        new CrownEvent(Player, 1).Invoke();
+        InputSystem.QueueStateEvent(Keyboard, new KeyboardState(Key.V));
+        yield return WaitFor(() => Player.LastSkillCast.HasValue, "V 应成功释放第三槽技能");
+        Assert.AreEqual(EnumSkillType.Weapon, Player.LastSkillCast!.Value.Kind);
+        Assert.Greater(Player.Slots.Skills.WeaponCooldownRemaining, 0f);
+        InputSystem.QueueStateEvent(Keyboard, new KeyboardState());
+        yield return null;
+        yield return ResetFromInput();
+        Assert.IsNull(Player.LastSkillCast);
+        Assert.AreEqual(0f, Player.Slots.Skills.WeaponCooldownRemaining);
+        Assert.AreSame(Player.Slots.UnarmedWeaponSkill, Player.Slots.Skills.Weapon);
+        Assert.IsTrue(Player.Brain.InputSource is PlayerInputSource);
+        Assert.IsTrue(Enemy.Brain.InputSource is AITreeInputSource);
     }
 
     private IEnumerator ResetFromInput()
