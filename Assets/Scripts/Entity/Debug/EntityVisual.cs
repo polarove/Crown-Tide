@@ -27,6 +27,9 @@ public sealed class EntityVisual : MonoBehaviour
     private RectTransform LinkRect = null!;
     private static readonly List<Rect> PlacedPanels = new();
     private static int LayoutFrame = -1;
+    private Vector3 DebugVelocity;
+    private Vector3 LastFramePosition;
+    private bool SamplingVelocity;
 
     public Rect DebugPanelScreenRect { get; private set; }
 
@@ -47,9 +50,14 @@ public sealed class EntityVisual : MonoBehaviour
     {
         if (!IsDebugPanelVisible || Entity == null)
         {
+            SamplingVelocity = false;
             if (PanelCanvas != null) PanelCanvas.enabled = false;
             return;
         }
+        DebugVelocity = SamplingVelocity && Time.deltaTime > 0f
+            ? (transform.position - LastFramePosition) / Time.deltaTime : Vector3.zero;
+        LastFramePosition = transform.position;
+        SamplingVelocity = true;
         EnsurePanel();
         PanelCanvas!.enabled = false;
         PanelText.text = GetDebugText();
@@ -189,7 +197,7 @@ public sealed class EntityVisual : MonoBehaviour
     {
 
         EntityBrain brain = Entity.Brain;
-        Vector3 velocity = brain.DebugVelocity;
+        Vector3 velocity = DebugVelocity;
         float horizontalSpeed = new Vector3(velocity.x, 0f, velocity.z).magnitude;
 
         // 各活跃层状态名（如"Sprint｜Air｜Attack"），未激活的层不显示

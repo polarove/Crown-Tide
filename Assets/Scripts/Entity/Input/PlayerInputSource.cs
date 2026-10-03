@@ -19,10 +19,10 @@ public enum EnumSprintInputMode
 /// 移动方向投影读 ViewTransform（视角基准，CameraRig 注入/Inspector 手连）而非 Camera.main——
 /// 多人纪律：每玩家自己的相机，不全局找。
 /// 加速点按/长压判定（四字段）是本输入源的内部状态，不进指令缓冲。
-    /// 附身走 Possess 动作（V / LB）；调试链（F3~F11）仅在 Debug 模式直读设备。
+/// 附身走正式 Possess 动作（V / LB）；Debug 输入与执行由独立模块接入。
 /// </summary>
 [RequireComponent(typeof(PlayerInput))]
-public sealed class PlayerInputSource : MonoBehaviour, IInputSource
+public sealed partial class PlayerInputSource : MonoBehaviour, IInputSource
 {
     [Header("视角基准")]
     [Tooltip("移动投影和攻击水平朝向的视角基准（本玩家相机；空 = CameraRig 自动注入，也可手连）")]
@@ -37,14 +37,6 @@ public sealed class PlayerInputSource : MonoBehaviour, IInputSource
     [Tooltip("「点按与长按」模式下区分两种按法的分界秒数：按下后在此时长内松开算点按，超过算长按")]
     public float SprintTapTime = 0.3f;
 
-    [Header("调试效果（拖演示 SO：右键 Create → Crown Tide → 修饰效果）")]
-    [Tooltip("F3：对自身施加（眩晕演示——失控/打断/自动解除全链路）")]
-    public ModifierEffect? DebugStunModifier;
-    [Tooltip("F4：对自身施加（急速演示——移速乘数）")]
-    public ModifierEffect? DebugHasteModifier;
-    [Tooltip("F5：对自身施加（创伤演示——周期跳伤/死亡占位）")]
-    public ModifierEffect? DebugWoundModifier;
-
     [Header("附身效果配置（Duration 到期自动换回）")]
     [Tooltip("V / LB：被附身者身上的会话载体（如「被附身」；Duration = 附身时长）")]
     public PossessionEffect? DebugPossessionEffect;
@@ -57,10 +49,11 @@ public sealed class PlayerInputSource : MonoBehaviour, IInputSource
     private PlayerInput PlayerInput = null!;
     private InputAction SprintAction = null!;
     private InputAction AimAction = null!;
+    private InputAction? MoveAction;
+    private InputActionAsset? OwnedActions;
     private bool Bound;                  // Brain 绑定标志（未绑定 = 沉默，回调/Gather 双守门）
-    private bool WarnedMissingModifiers; // 调试槽忘拖资产的一次性警告标记（防刷屏）
     private bool WarnedMissingPlayerInput;   // 缺 PlayerInput 组件的一次性警告标记（防刷屏）
-    private bool WarnedMissingPossessionEffect;   // 调试附身槽未拖资产的一次性警告标记（防刷屏）
+    private bool WarnedMissingPossessionEffect;   // 附身效果槽未拖资产的一次性警告标记（防刷屏）
     private InputDevice[]? PreviousDevices;
     private string? PreviousControlScheme;
 
@@ -84,10 +77,20 @@ public sealed class PlayerInputSource : MonoBehaviour, IInputSource
         // 动态挂上的 PlayerInput 不会自动继承 PlayerInput 的项目级缺省，Action 引用会全空
         if (PlayerInput.actions == null)
         {
-            PlayerInput.actions = InputSystem.actions;
+            InputActionAsset? template = InputSystem.actions ?? FallbackActions;
+            if (template != null) PlayerInput.actions = template;
         }
         if (PlayerInput.actions != null)
         {
+            OwnedActions = Instantiate(PlayerInput.actions);
+            PlayerInput.actions = OwnedActions;
+            if (PlayerInput.actions != OwnedActions)
+            {
+                Destroy(OwnedActions);
+                OwnedActions = PlayerInput.actions;
+            }
+            GameSettingsController.RegisterInput(OwnedActions);
+            MoveAction = PlayerInput.actions.FindAction("Move");
             SprintAction = PlayerInput.actions.FindAction("Sprint");
             AimAction = PlayerInput.actions.FindAction("Aim");
         }
@@ -105,9 +108,12 @@ public sealed class PlayerInputSource : MonoBehaviour, IInputSource
         }
         if (PlayerInput.actions == null && FallbackActions != null)
         {
-            PlayerInput.actions = FallbackActions;   // 附身兜底：目标实体没预配 Actions 时补上
-            SprintAction = FallbackActions.FindAction("Sprint");
-            AimAction = FallbackActions.FindAction("Aim");
+            OwnedActions = Instantiate(FallbackActions);
+            PlayerInput.actions = OwnedActions;
+            GameSettingsController.RegisterInput(OwnedActions);
+            MoveAction = OwnedActions.FindAction("Move");
+            SprintAction = OwnedActions.FindAction("Sprint");
+            AimAction = OwnedActions.FindAction("Aim");
         }
         Bound = true;
         PlayerInput.enabled = true;
@@ -175,7 +181,7 @@ public sealed class PlayerInputSource : MonoBehaviour, IInputSource
 
     private void OnMove(InputValue inputValue)
     {
-        if (!Bound)
+        if (!Bound || GameSettingsController.IsGameplayInputBlocked)
         {
             return;
         }
@@ -184,7 +190,7 @@ public sealed class PlayerInputSource : MonoBehaviour, IInputSource
 
     private void OnJump(InputValue inputValue)
     {
-        if (!Bound || !inputValue.isPressed)
+        if (!Bound || GameSettingsController.IsGameplayInputBlocked || !inputValue.isPressed)
         {
             return;
         }
@@ -193,7 +199,7 @@ public sealed class PlayerInputSource : MonoBehaviour, IInputSource
 
     private void OnAttack(InputValue inputValue)
     {
-        if (!Bound || !inputValue.isPressed)
+        if (!Bound || GameSettingsController.IsGameplayInputBlocked || !inputValue.isPressed)
         {
             return;
         }
@@ -203,26 +209,26 @@ public sealed class PlayerInputSource : MonoBehaviour, IInputSource
 
     private void OnCrownSkill(InputValue inputValue)
     {
-        if (Bound && inputValue.isPressed)
+        if (Bound && !GameSettingsController.IsGameplayInputBlocked && inputValue.isPressed)
             EnsureEntity().Commands.SkillSlotQueued = (int)EnumSkillType.Crown;
     }
 
     private void OnTideSkill(InputValue inputValue)
     {
-        if (Bound && inputValue.isPressed)
+        if (Bound && !GameSettingsController.IsGameplayInputBlocked && inputValue.isPressed)
             EnsureEntity().Commands.SkillSlotQueued = (int)EnumSkillType.Tide;
     }
 
     // 正式玩法输入：V / LB。仅提交意图，释放条件由 Brain 统一检查。
     private void OnPossess(InputValue inputValue)
     {
-        if (!Bound || !inputValue.isPressed)
+        if (!Bound || GameSettingsController.IsGameplayInputBlocked || !inputValue.isPressed)
         {
             return;
         }
         if (DebugPossessionEffect == null || DebugSoulOutEffect == null)
         {
-            WarnMissingDebugPossession();
+            WarnMissingPossession();
             return;
         }
         EnsureEntity().Commands.PossessionQueued = true;
@@ -231,7 +237,7 @@ public sealed class PlayerInputSource : MonoBehaviour, IInputSource
     /// <summary>每帧采集：加速键 → 杆量投影成视角相对方向 → 长按判定 → 瞄准电平 → 汇总写缓冲</summary>
     public void GatherCommands(CommandBuffer commands)
     {
-        if (!Bound)
+        if (!Bound || GameSettingsController.IsGameplayInputBlocked)
         {
             return;
         }
@@ -241,6 +247,7 @@ public sealed class PlayerInputSource : MonoBehaviour, IInputSource
             return;
         }
 
+        if (MoveAction != null) moveInput = MoveAction.ReadValue<Vector2>();
         UpdateSprintInput(Time.deltaTime);
         UpdateMoveDirection(commands);
         Vector3 look = ViewTransform != null ? ViewTransform.forward : host.transform.forward;
@@ -250,11 +257,24 @@ public sealed class PlayerInputSource : MonoBehaviour, IInputSource
             look = Vector3.Cross(ViewTransform.right, Vector3.up);
         commands.LookDirection = look.normalized;
         UpdateSprintHoldPromotion(Time.deltaTime);
-        UpdateDebugInput(host);
 
         // 电平型指令：本帧输入源的最终判定（帧首已重置）
         commands.SprintActive = SprintToggled || SprintHoldActive;
         commands.AimActive = AimAction != null && AimAction.ReadValue<float>() > 0.5f;
+    }
+
+    public void ResetPausedInput()
+    {
+        moveInput = Vector2.zero;
+        SprintPressing = SprintToggled = SprintHoldActive = false;
+        SprintPressTimer = 0f;
+    }
+
+    private void OnDestroy()
+    {
+        if (OwnedActions == null) return;
+        GameSettingsController.UnregisterInput(OwnedActions);
+        Destroy(OwnedActions);
     }
 
     // ---- 每帧数据采集 ----
@@ -328,89 +348,16 @@ public sealed class PlayerInputSource : MonoBehaviour, IInputSource
         }
     }
 
-    /// <summary>调试输入：F3/F4/F5 对自身施加调试效果、F6 全驱散、F7 对场景内其他实体施加眩晕、
-    /// F9 请求冠冕技能（正信心阈值），
-    /// F11 请求潮汐技能（负信心阈值）；成功释放均归零，满值按键释放强化版本。
-    /// F1/F2 已被视角切换占用；正式效果来自战斗系统的命中入口；设备直读不走输入资源。
-    /// 附身独立通过 Possess 动作提交请求，不受此调试开关限制。</summary>
-    private void UpdateDebugInput(Entity host)
-    {
-        if (!DebugSystem.IsEnabled)
-        {
-            return;
-        }
-        Keyboard keyboard = Keyboard.current;
-        if (keyboard == null)
-        {
-            return;
-        }
-
-        if (keyboard.f3Key.wasPressedThisFrame)
-        {
-            ApplyDebugModifier(host, DebugStunModifier, "F3 眩晕");
-        }
-        if (keyboard.f4Key.wasPressedThisFrame)
-        {
-            ApplyDebugModifier(host, DebugHasteModifier, "F4 急速");
-        }
-        if (keyboard.f5Key.wasPressedThisFrame)
-        {
-            ApplyDebugModifier(host, DebugWoundModifier, "F5 创伤");
-        }
-        if (keyboard.f6Key.wasPressedThisFrame)
-        {
-            host.Brain.Modifiers.Dispel(EnumModifierCategory.All);
-        }
-        if (keyboard.f7Key.wasPressedThisFrame && DebugStunModifier != null)
-        {
-            // 敌人侧回归：场景内其他实体走同一套列表/投影（FindObjectsByType 只在调试分支跑，不上玩法路径）
-            foreach (Entity other in FindObjectsByType<Entity>())
-            {
-                if (other != host)
-                {
-                    other.Brain.Modifiers.Apply(DebugStunModifier);
-                }
-            }
-        }
-        if (keyboard.f9Key.wasPressedThisFrame)
-        {
-            // Debug 技能请求：能力、冷却、正信心阈值；成功释放归零。
-            host.Commands.SkillSlotQueued = (int)EnumSkillType.Crown;
-        }
-        if (keyboard.f11Key.wasPressedThisFrame)
-        {
-            // Debug 潮汐请求：负信心阈值；满值按键释放强化版本。
-            host.Commands.SkillSlotQueued = (int)EnumSkillType.Tide;
-        }
-    }
-
-    /// <summary>附身候选（实体级查询，不含任何会话管理器）：场景里另一个非玩家驱动、存活、未被占用的实体</summary>
-    private static Entity? FindPossessionCandidate(Entity self) => EntityBrain.FindPossessionCandidate(self);
-
-    /// <summary>调试附身资产没配的一次性警告（防刷屏）</summary>
-    private void WarnMissingDebugPossession()
+    /// <summary>正式附身资产没配的一次性警告（防刷屏）</summary>
+    private void WarnMissingPossession()
     {
         if (WarnedMissingPossessionEffect)
         {
             return;
         }
         WarnedMissingPossessionEffect = true;
-        Debug.LogWarning("V / LB：调试附身槽未拖 PossessionEffect 资产" +
+        Debug.LogWarning("V / LB：附身效果槽未拖 PossessionEffect 资产" +
             "（右键 Create → Crown Tide → 附身效果），此警告只提示一次");
     }
 
-    /// <summary>调试施加：空槽一次性警告后跳过（列表对 null 也早退，这里负责把缺配置讲清楚）</summary>
-    private void ApplyDebugModifier(Entity host, ModifierEffect? modifier, string keyName)
-    {
-        if (modifier == null)
-        {
-            if (!WarnedMissingModifiers)
-            {
-                WarnedMissingModifiers = true;
-                Debug.LogWarning($"{keyName}：调试槽未拖 ModifierEffect 资产（此警告只提示一次）");
-            }
-            return;
-        }
-        host.Brain.Modifiers.Apply(modifier);
-    }
 }

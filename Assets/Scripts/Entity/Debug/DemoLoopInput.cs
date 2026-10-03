@@ -14,7 +14,6 @@ public sealed class DemoLoopInput : MonoBehaviour
         Reset = GetComponent<DemoLoopReset>();
         Restart = new InputAction("ResetDemo", InputActionType.Button);
         Restart.AddBinding("<Keyboard>/backspace");
-        Restart.AddBinding("<Gamepad>/start");
         ToggleAttack = new InputAction("ToggleDemoEnemyAttack", InputActionType.Button);
         ToggleAttack.AddBinding("<Keyboard>/f8");
     }
@@ -22,7 +21,7 @@ public sealed class DemoLoopInput : MonoBehaviour
     private void OnEnable()
     {
         Restart?.Enable();
-        ToggleAttack?.Enable();
+        if (DebugSystem.IsEnabled) ToggleAttack?.Enable();
     }
 
     private void OnDisable()
@@ -33,7 +32,9 @@ public sealed class DemoLoopInput : MonoBehaviour
 
     private void Update()
     {
-        if (Reset.IsResetting) return;
+        if (DebugSystem.IsEnabled && !ToggleAttack.enabled) ToggleAttack.Enable();
+        else if (!DebugSystem.IsEnabled && ToggleAttack.enabled) ToggleAttack.Disable();
+        if (Reset.IsResetting || GameSettingsController.IsGameplayInputBlocked) return;
         if (Restart.WasPressedThisFrame()) Reset.RequestReset();
         else if (DebugSystem.IsEnabled && ToggleAttack.WasPressedThisFrame()) Reset.ToggleEnemyAttack();
     }

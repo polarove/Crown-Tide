@@ -1,5 +1,47 @@
 # 发现与决策：附身模块
 
+## 2026-10-03：基础设置面板方案
+
+Codex record。任务：改键位与退出。开发者：CCvTDD；Agent：Codex（/root）。
+
+- PlayerControls 包含 WASD 合成、键鼠与手柄按钮、相机动作；相机另持动作副本，附身切换输入源，因此设置覆盖必须应用到全部运行时副本及后续新副本，不能只改当前角色或共享资源。
+- Esc 未占用；手柄 Start／Menu 原为 DemoLoopInput 重开，调整为设置入口后更新该用例，保留 Backspace 重开。CameraRig 会重新锁鼠标，需在菜单期间让相机尊重设置的输入上下文。
+- 本轮采用本地配置自动保存／恢复默认、保留键限制及同设备绑定冲突拒绝；UI 请求交由设置逻辑处理，退出经平台服务确认执行。单机暂停是本轮实现选择，不扩张为多人网络规则。
+- Unity 官方 Input System 支持运行时覆盖、交互重绑与 JSON 保存／加载；以工程安装的 1.20.0 源码验证 API，并只读模板。[官方说明](https://github.com/Unity-Technologies/InputSystem/blob/develop/Packages/com.unity.inputsystem/Documentation~/user-rebinding-runtime.md)。
+
+## 2026-10-03：Debug 专属模块抽离
+
+Codex record。任务：调试职责与注入重构。开发者：CCvTDD；Agent：Codex（/root）。
+
+- 现状证据：PlayerInputSource.UpdateDebugInput 直接 Apply／Dispel，Brain 持有 DebugVelocity；Capabilities 已是纯查询，本轮无需向仲裁添加调试执行。正式附身使用带 Debug 前缀的两个配置字段，但不属于受开关限制的调试功能。
+- 实现：DebugSystem、EntityVisual、DemoLoopInput、DemoLoopReset 连同原 .meta 移到 Entity/Debug；新增 EntityDebugCommands 及通用 IEntityCommandModule 接缝。开关开启后注入，关闭即时撤下；模块内部再守开关与当前玩家输入源，技能请求复用正式门禁。
+- 序列化兼容：三个调试效果字段保持在原 PlayerInputSource 类型，声明移动至 Debug 目录的 partial 文件，不迁移场景字段或 GUID；这是资产兼容接缝，不是调试执行仍留在输入源。速度采样由 Debug 面板自行负责。
+- Debug 启用期间扫描实体以接入动态生成／重新激活对象，关闭不扫描、不执行调试指令。F8 的动作监听与执行均守开关；Backspace／Menu 重开保留原行为。
+- 工具／环境记录：进程命令行查询拒绝访问；初次 asmdef 路径猜测错误后改用 Runtime.asmdef；两次补丁上下文不匹配，读取实际文本后修正。首次离线编译发现新增弃用重载与可空警告，已修正；剩余 EntityCombatVisual.cs:161 可空警告为原有问题。
+- Unity 首次受限启动因本地 UPM IPC 连接失败而退出，未执行测试；改用允许的临时副本运行，不关闭用户正在使用的编辑器。最终测试结果待日志确认。
+- 失败复核：第一次全套 100/101，最终源码首轮 99/101；新增 Debug 回归均通过。旧版代码的 Debug／场景专项 6/7，重现同一面板重叠失败，AI 追击专项通过；因此保留原失败记录，不认定全套已通过。面板测试改为显式 1440×900 视口，避免批处理默认尺寸影响断言；未修改产品布局。临时项目同时移到较短路径并补齐本地 PackageCache，以排除长路径包资源导入问题。
+- 视口修正过程：最初使用 RenderTexture 固定视口，`-nographics` 下记录 RenderTexture.Create failed 并触发 Unity 原生渲染崩溃，没有产出测试 XML；已移除 GPU 资源创建，改为仅设置／恢复 camera.pixelRect 后重新验证。
+- 纯 pixelRect 调整仍得到 99/101（同一面板失败与 AI 追击），未证明视口假设已解决。已撤回两种试验性面板测试改动，最终保留原断言，仅新增 Debug 注入回归；改用正常图形设备的隐藏批处理验证，不修改产品面板布局或 AI 实现。
+- 最终结果：正常图形批处理 PlayMode 100/101，新增 Debug 注入回归与 V／LB 正式附身均通过，AI 追击通过；唯一失败为原面板重叠（旧代码同环境也复现）。EditMode 24/24。运行时与改动测试源码的临时副本哈希与工作区一致；没有将旧失败、原生崩溃或未进行的人工验收计为通过。
+
+## 2026-10-03：新增会议决定同步
+
+Codex record。任务：识别并同步会议新增决定。开发者：CCvTDD；Agent：Codex（/root）。
+
+- Debug 隔离、跳跃资格／倍率分离、状态内转换校验、先状态成功后自身效果等已有登记；本轮不重复改变其规则。
+- 新增明确事项：文档随实现持续维护；Markdown 最新约定替换旧指导规则并补全逻辑／效果职责；基础设置面板优先包含改键位和退出；附身资格通过角色端与目标端统一查询复用。
+- 网络纳入规划但方案待讨论；移除被附身者技能／添加 Debuff 是备选，尚未定案。胶囊互打是会议阶段评价，本轮未作运行验收。
+- 现有 HTML／JSON 已包含 Logic 和效果处理核心链路；设置优先级、网络待定与附身接口封装以职责登记新增段落记录，不将规划伪装为已实现图中模块。
+
+## 2026-10-03：会议架构归档与指令入口
+
+Codex record。任务：记录全部会议架构决定并设置 AI 必读规则。开发者：CCvTDD；Agent：Codex（/root）。
+
+- 发现 `架构职责登记.md` 已由 polarove／Claude Code 登记当前 StateMachine、Blackboard、Templates 等目录与类职责；保留全文署名，在前部补充最新会议目标约定，明确现状和目标冲突不能作为扩展许可。
+- 汇总单向数据读写、统一 Entity、Logic 内仲裁／流转／效果职责、状态机不赋值、Data 受控读写与禁止反向修改、Debug 隔离、跳跃／技能／命中时序、可读性和强制审查闭环；通信与命中接口仍待定。
+- `AGENTS.md` 作为仓库持久指令，要求每次任务／新开发提示词／接手／上下文恢复先完整读登记，不冒称修改了应用内置系统提示词。图稿是辅助概览，不替代登记。
+- 本轮只核查目录与关键职责入口，未重新运行 Unity 或证明旧审视项已通过最新架构验收。
+
 > 由Codex记录，2026-10-02。详细实现与验证见 [附身实现与验证](附身实现与验证.md)。
 > 开发者：CCvTDD；Agent：Codex。
 
@@ -351,3 +393,32 @@
 - 同一默认AI贴身策略两轮45.71秒生命100→34，治疗30，敌人200→26；操作／反馈修正没有改变这笔收支。不同走位策略与正式平衡尚未验证。
 - 补正上一条“隔离测试未自带AI组件”的表述：EntityBrain的RequireComponent本就声明AI源；专项为方向采集显式添加了测试源，不代表生产实体缺少AI组件，也没有以缺少AI作为已复现故障。
 - Logs/FeedbackValidation是本地忽略的证据目录，不随Git同步；共享结论与复现说明在Docs/当前演示可玩性复核.md和Docs/游戏设定循环验证.md。
+
+### 设置面板首轮回归发现（2026-10-03，Codex record；开发者：CCvTDD；Agent：Codex（/root））
+
+首轮专项 2/6：项目级 `InputSystem.actions` 是另一份默认输入表，与场景实际 `PlayerControls` 的绑定 ID 不同；已改为从角色／相机注册的实际动作表初始化设置。由此造成的键位不同步、手柄默认 UI 绑定冲突及缺少相机条目已定位。另修复改绑结束同帧 UI 提交误触风险，延迟恢复按钮交互。辅助编译引用匹配遗漏 `.ref.dll` 后缀导致脚本中断；一次临时脚本默认 GBK 读取中文源码失败，改为显式 UTF-8，未改动文件后复测。
+
+### 设置实现与后续验证（2026-10-03，Codex record；开发者：CCvTDD；Agent：Codex（/root））
+
+修正实际玩法表后专项 5/6；最后一个手柄失败是测试找到隐藏待销毁的旧键盘按钮，已只点击当前可见按钮，专项最终 6/6（包含真实鼠标退出确认点击）。全量图形模式 105/107：旧 Debug 面板重叠、AI 追击未命中；AI 单独仍复现，需同环境基线对照，不能直接归因旧问题。临时渲染验证使用 Unity RenderPipeline.StandardRequest，将实际 Canvas 导出为 PNG，已目检；普通批处理 ScreenCapture 未产出图片，移除无效的条件截图测试代码。补充可见滚动条／浏览提示，并校正相机切肩按原绑定槽保留左／右语义，复测中。一次包源码搜索把 PowerShell 通配符交给 rg 造成路径错误，改用真实文件路径。渲染 API 依据：https://docs.unity.com/en-us/engine/6000.5/script-reference/unityengine/rendering/renderpipeline/submitrenderrequest 。
+
+### 基础设置最终复核（2026-10-03，Codex record；开发者：CCvTDD；Agent：Codex（/root））
+
+最终功能回归 9/9（六项设置、两项原相机附身回归、一项死亡后 Menu 与 Backspace），临时界面渲染 1/1；键鼠及手柄面板截图已目检，补充滚动条帮助发现下方技能条目。真实场景重开保留 J 改绑专项 1/1；该补充首次测试把新 SceneHandle 赋给 int 引发 CS0619，改 var 修正。EditMode 24/24。运行时及 PlayMode 源码离线编译均退出 0，只余既有 EntityCombatVisual 可空警告。
+
+全量 PlayMode 105/107：既有 Debug 面板重叠及 AI 追击失败。AI 同环境对照在临时副本停用新增设置自举、移除 Brain 暂停门、输入／相机注册与屏蔽，并还原输入缓存读法后仍失败（0/1），最终副本已恢复为当前源码。该对照排除了本轮设置接入的触发，但没有完成 AI 根因诊断；不能把 105/107 写成全量通过。证据在系统 TEMP/ctsettings-validation，包括 full.xml、final-regression.xml（含一项临时渲染）、reset-binding-final.xml、editmode.xml、ai-baseline.xml 和 PNG；辅助渲染脚本只在临时工程，不进入仓库。独立程序实际退出、真实设备人工体验、多人暂停与发布隔离仍未验证。
+
+## 2026-10-03｜Debug 与基础设置架构复审（进行中）
+
+Codex record。任务：独立复审两项近期修改。开发者：CCvTDD；Agent：Codex（/root）。
+
+DebugSystem 开关关闭即时 Detach，EntityDebugCommands 二次检查 Debug／玩家输入／设置暂停；Input／Capabilities 无具体调试效果。Settings UI 按钮经 Controller 请求，Data 只存 JSON，运行时副本按 GUID 同步。但 Controller.Awake 直接创建 GameSettingsPanel，形成 Logic 对 Presentation 的具体依赖；InputBindingSettings 构造直接 LoadBindingOverridesFromJson，未复用保留键／设备／类型／冲突规则。以上两处进入针对性核对，不能以此前功能测试通过替代架构复审。
+
+### 独立复审最终结论（2026-10-03，Codex record；开发者：CCvTDD；Agent：Codex（/root））
+
+1. **P2：加载路径绕过统一规则**。`InputBindingSettings.cs:39-47` 只把合法 JSON 加载为覆盖，不检查保留键、设备／控件类型或与当前默认键冲突。临时 Unity 复现确认：正常 TryRebind 拒绝 Esc，但构造加载接受并同步到运行实例；旧版通过 TryRebind 保存 Jump=J 后，模拟新版给 Attack 增加 J 默认键，加载同时保留 Jump=J／Attack=J，而正常改绑仍会拒绝 J。存储层没有主动执行玩法，但逻辑层遗漏数据入口的统一仲裁；后续版本／DLC 演进会暴露这个缺口。建议抽纯校验，交互改绑与加载共用，先校验再提交／同步；不直接复用带 Save 副作用的 TryRebind 去批量加载。
+2. **P2：逻辑层直接装配具体表现层**。`GameSettingsController.cs:60` 在逻辑 Awake 中 AddComponent<GameSettingsPanel>，导致设置逻辑与具体 UI 互相依赖；单独创建设置逻辑必定带 Canvas／字体。该问题是分层职责／依赖耦合，不把对象创建夸大为数据层反向修改角色。建议把自举与 UI 组合交给独立装配入口，让 Controller 只管理设置会话和请求；Presentation 单向使用 Controller。中文标签／键位显示目前也在 InputBindingSettings 中，可随后整理到表现，但不是本轮另加阻断项。
+
+Debug 主链通过当前职责核查：独立目录，关闭即时撤下，保留模块引用也会早退，Capabilities 纯查询，正式附身不依赖 Debug，Brain 只编排扩展调用；发布剔除未实现，按既有待定边界登记，不当作新缺陷。partial 调试字段仍属于同一输入组件，是已登记的序列化兼容妥协，并非完全编译依赖隔离。单机全局暂停按 J 节当前范围审查，不承诺适用于多人。
+
+两项临时缺陷复现 **2/2 确认**，XML：`C:/Users/Administrator/AppData/Local/Temp/ctsettings-validation/architecture-review.xml`。辅助源码仅在临时工程；本轮没有改运行时代码、没有修复两项问题，也未重跑全量。此前功能测试结果维持原证据；此前“设置架构审查完成／通过”判断需要更正为“实现完成，独立架构复审未通过”。

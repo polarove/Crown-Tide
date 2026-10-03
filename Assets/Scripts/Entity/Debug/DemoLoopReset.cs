@@ -11,7 +11,7 @@ public sealed class DemoLoopReset : MonoBehaviour
 
     public void ToggleEnemyAttack()
     {
-        if (IsResetting || Enemy == null || Enemy.Brain.AiSource == null) return;
+        if (!DebugSystem.IsEnabled || IsResetting || Enemy == null || Enemy.Brain.AiSource == null) return;
         Enemy.Brain.AiSource.EnableMeleeAttack = !Enemy.Brain.AiSource.EnableMeleeAttack;
         if (!Enemy.Brain.AiSource.EnableMeleeAttack && Enemy.Brain.InputSource is AITreeInputSource)
         {

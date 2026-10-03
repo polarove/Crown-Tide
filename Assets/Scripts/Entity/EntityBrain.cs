@@ -11,7 +11,7 @@ using UnityEngine;
 /// 3 修饰列表步进（投影先于状态机 = 失控当帧压制；帧末施加的效果次帧压制）+ 技能冷却步进；
 /// 4 死亡门（清边沿指令 return；不用 enabled=false——那会杀掉网络回调，多人纪律）；
 /// 5 地面检测 → 6 主动作消费（起手当帧进前摇）→ 7 状态机两遍 Tick（水平移动/连段推进）
-/// → 8 跳跃消费 → 9 重力 → 10 转向 → 11 调试采样。
+/// → 8 跳跃消费 → 9 重力 → 10 转向；可选指令模块在输入采集后由接口接入。
 /// 输入源绑定：控制状态的唯一真相 = InputSource（is PlayerInputSource 即玩家驱动）；
 /// Entity.startPlayerControlled 只决定开局绑定，双源同挂物体、运行时切换只换绑定（V / LB 附身演示）。
 /// deltaTime 全链传参（换 NetworkTime/固定 tick 只改本类取时一处——网络时间纪律）。
@@ -113,9 +113,6 @@ public sealed class EntityBrain : MonoBehaviour
     public AITreeInputSource? AiSource;
     private bool WarnedMissingSource;
 
-    // 调试采样：本帧实测速度（位置差反推，比状态选的速度更可信，能反映碰撞和重力）
-    private Vector3 LastFramePosition;
-
     // 首帧附身唯一性自检标记（一次性）
     private bool CheckedPossessionUniqueness;
 
@@ -149,8 +146,20 @@ public sealed class EntityBrain : MonoBehaviour
         }
     }
 
-    /// <summary>本帧实测速度（调试面板读）</summary>
-    public Vector3 DebugVelocity { get; private set; }
+    /// <summary>可选指令模块；其启停与执行由外部模块负责，Brain 仅编排调用。</summary>
+    public IEntityCommandModule? CommandModule { get; private set; }
+
+    public bool AttachCommandModule(IEntityCommandModule module)
+    {
+        if (CommandModule != null && !ReferenceEquals(CommandModule, module)) return false;
+        CommandModule = module;
+        return true;
+    }
+
+    public void DetachCommandModule(IEntityCommandModule module)
+    {
+        if (ReferenceEquals(CommandModule, module)) CommandModule = null;
+    }
 
     /// <summary>
     /// 装配（Entity.Awake 调用一次，全实体唯一初始化入口——单 Awake 规则）：
@@ -205,7 +214,6 @@ public sealed class EntityBrain : MonoBehaviour
         // 覆盖 Inspector 预配的初始装备：开局穿在身上的套装档位立即生效（变更驱动，不占每帧管线）
         ArmorSets.Sync();
 
-        LastFramePosition = transform.position;
     }
 
     /// <summary>绑定输入源（控制权唯一写口）：传实例本身——通常传本实体的双源组件之一，
@@ -382,10 +390,19 @@ public sealed class EntityBrain : MonoBehaviour
         //    边沿型指令不在此列——由消息回调/决策在帧间置位，帧首清会丢输入
         commands.ResetLevels();
 
+        // 当前单机设置会话暂停仿真；清边沿防 UI 点击在恢复后变成攻击。
+        if (GameSettingsController.IsGameplayInputBlocked)
+        {
+            commands.ClearEdges();
+            PlayerSource?.ResetPausedInput();
+            return;
+        }
+
         ReconcilePossession(modifiers); // 输入采集前处理失效双方或已移除效果。
 
         // 2) 输入源采集（玩家/AI 汇流；无输入源 = 全零站桩）
         InputSource?.GatherCommands(commands);
+        CommandModule?.GatherCommands(host, commands);
 
         // 3) 修饰列表（时长/周期跳伤/CC 投影）+ 技能冷却步进
         modifiers.Tick(deltaTime);
@@ -421,9 +438,6 @@ public sealed class EntityBrain : MonoBehaviour
         if (machine.GetActive(EnumStateLayer.Action) is not EntityAttackState)
             host.Motor.RotateTowards(commands.MoveDirection, deltaTime);
 
-        // 11) 调试采样：位置差反推真实移动速度（一次减法可忽略）
-        DebugVelocity = (transform.position - LastFramePosition) / deltaTime;
-        LastFramePosition = transform.position;
     }
 
     /// <summary>主动作消费：攻击边沿（含瞄准射击翻译与连段留置）+ 技能边沿（双闸门）。

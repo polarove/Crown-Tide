@@ -116,6 +116,7 @@ public sealed class CameraRig : MonoBehaviour
         // 因此必须持有独立动作实例，不能让角色输入开关影响视角输入的生命周期。
         LocalInputActions = Instantiate(InputActionAsset);
         LocalInputActions.bindingMask = null;
+        GameSettingsController.RegisterInput(LocalInputActions);
         GamepadLookAction = LocalInputActions.FindAction("Look", throwIfNotFound: true);
         MouseLookAction = LocalInputActions.FindAction("MouseLook", throwIfNotFound: true);
         SwitchShoulderAction = LocalInputActions.FindAction("SwitchShoulder", throwIfNotFound: true);
@@ -134,6 +135,7 @@ public sealed class CameraRig : MonoBehaviour
         }
         if (LocalInputActions != null)
         {
+            GameSettingsController.UnregisterInput(LocalInputActions);
             LocalInputActions.Disable();
             Destroy(LocalInputActions);
         }
@@ -147,7 +149,7 @@ public sealed class CameraRig : MonoBehaviour
         SwitchShoulderAction.Enable();
         ToggleViewModeAction.Enable();
 
-        if (LockAndHideCursor)
+        if (LockAndHideCursor && !GameSettingsController.IsGameplayInputBlocked)
         {
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
@@ -172,11 +174,13 @@ public sealed class CameraRig : MonoBehaviour
     // 十字键左 = 左肩，十字键右 = 右肩，其他绑定（键盘 F1）= 左右切换
     private void OnSwitchShoulder(InputAction.CallbackContext context)
     {
-        if (FollowEntity == null || !FollowEntity.HasPlayerView || !CameraComponent.enabled)
+        if (GameSettingsController.IsGameplayInputBlocked || FollowEntity == null || !FollowEntity.HasPlayerView || !CameraComponent.enabled)
         {
             return;
         }
-        string controlPath = context.control.path;
+        // 左／右肩语义来自原绑定槽；改键后不能退化为“任意键都切换”。
+        int bindingIndex = context.action.GetBindingIndexForControl(context.control);
+        string controlPath = bindingIndex >= 0 ? context.action.bindings[bindingIndex].path : context.control.path;
         if (controlPath.EndsWith("/dpad/left"))
         {
             CurrentShoulderSide = -1;
@@ -248,6 +252,7 @@ public sealed class CameraRig : MonoBehaviour
             RestoreEntityMeshRenderers();
             return;   // 熄灭的相机：不锁鼠标、不读视角输入（再亮时视角不跳）、不更新跟随
         }
+        if (GameSettingsController.IsGameplayInputBlocked) return;
         Transform followTarget = FollowEntity.transform;
         // 首次接管一具身体时朝向它正在看的方向；返回已用过的身体保留原视角。
         if (!HasActivatedView)

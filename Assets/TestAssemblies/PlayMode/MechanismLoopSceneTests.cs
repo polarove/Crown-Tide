@@ -288,11 +288,20 @@ public sealed class MechanismLoopSceneTests
     }
 
     [UnityTest]
-    public IEnumerator 死亡后手柄Menu重置_仍能重新接收移动输入()
+    public IEnumerator 死亡后Menu打开设置_Backspace重置后仍能移动()
     {
         Player.Brain.TakeDamage(1000f);
         Assert.IsTrue(Player.IsDead);
-        yield return ResetFromInput(gamepad: true);
+        InputSystem.QueueStateEvent(Pad, new GamepadState().WithButton(GamepadButton.Start));
+        yield return null;
+        yield return null;
+        Assert.IsTrue(GameSettingsController.Instance!.IsOpen);
+        Assert.IsTrue(Player.IsDead, "Menu 不再重开演示");
+        GameSettingsController.Instance.SetOpen(false);
+        InputSystem.QueueStateEvent(Pad, new GamepadState());
+        yield return null;
+        yield return null;
+        yield return ResetFromInput();
         Assert.IsFalse(Player.IsDead);
         Enemy.Brain.AiSource!.EnableMeleeAttack = false;
         Pair(Player, false);
@@ -304,11 +313,10 @@ public sealed class MechanismLoopSceneTests
         Assert.Greater(Vector3.Distance(before, Player.transform.position), .1f);
     }
 
-    private IEnumerator ResetFromInput(bool gamepad = false)
+    private IEnumerator ResetFromInput()
     {
         var oldHandle = Scene.handle;
-        if (gamepad) InputSystem.QueueStateEvent(Pad, new GamepadState().WithButton(GamepadButton.Start));
-        else InputSystem.QueueStateEvent(Keyboard, new KeyboardState(Key.Backspace));
+        InputSystem.QueueStateEvent(Keyboard, new KeyboardState(Key.Backspace));
         yield return null;
         yield return null;
         InputSystem.QueueStateEvent(Keyboard, new KeyboardState());

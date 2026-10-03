@@ -1,10 +1,21 @@
 # Repository Guidelines
 
+## 架构职责登记：每次工作必须先读
+
+- 每次进入本仓库开始任务、收到新的开发指令／提示词、接手任务或上下文压缩恢复后，必须先完整读取 [Docs/架构职责登记.md](Docs/架构职责登记.md)，理解本次工作涉及的职责、数据流向、读写权限和未定边界，再制定方案或修改文件。不能只依赖历史聊天、摘要或架构图。
+- 这是本项目的重要架构依据。登记中的“最新会议目标约定”指导后续新增与重构；旧类职责表记录现状，不代表旧实现已符合最新约定。用户后续明确决定优先，先同步登记再实施；未确认事项不得自行变成强制规则。
+- 动手前明确本功能属于哪个模块、谁仲裁、谁管理状态、谁实施效果、谁经数据接口赋值。状态机只管流转，逻辑层负责效果与赋值；下层禁止反向修改上层。具体规则以登记为准。
+- 功能开发遵循“方案文档 → 实现 → 架构审查 → 修正 → 复审通过”。每次大量变更必须完成架构审查，通过后才进入下一功能；验证结果与未完成事项写入 `Docs/progress.md`。
+- 若登记无法读取，或本任务依赖的关键边界仍冲突／未定，先解决该缺口，不得凭猜测修改相关代码；可继续不依赖该缺口的工作。架构职责变化必须更新登记，并保持图稿一致。
+- 架构与开发文档必须随实现持续维护，包括实际类职责、读写权限和验证边界；会议新增明确决定需先同步登记。旧实现快照中的冲突规则不得继续使用，也不能把网络规划、附身防误触备选或接口示意当成已批准实现。
+
 ## Project Structure & Module Organization
 
 This is a Unity 6 project using Editor **6000.6.3f1**, URP, and the Input System.
 
 - `Assets/Scripts/Entity/`: runtime assembly `Entity.Runtime`; organized into Input, Data, Logic, Physics, and Presentation, with `Entity` and `EntityBrain` coordinating components.
+- `Assets/Scripts/Entity/Debug/`: isolated debug session, command execution, panel, and demo helpers; debug commands attach through the optional command-module interface only while Debug is enabled.
+- `Assets/Scripts/Entity/Settings/`: single-player settings session; Data stores binding overrides, Logic validates/synchronizes runtime input copies and handles pause/exit, Presentation submits UI requests. Esc/Gamepad Menu opens settings; Backspace restarts the demo.
 - `Assets/Editor/`: demo asset generation, scene assembly, and validation tools.
 - `Assets/Scenes/SampleScene.unity`: current demo and enabled build scene.
 - `Assets/TestAssemblies/`: EditMode and PlayMode tests.

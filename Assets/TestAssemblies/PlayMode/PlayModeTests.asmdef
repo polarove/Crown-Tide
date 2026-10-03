@@ -5,7 +5,8 @@
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
         "Unity.InputSystem",
-        "Entity.Runtime"
+        "Entity.Runtime",
+        "Unity.ugui"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
