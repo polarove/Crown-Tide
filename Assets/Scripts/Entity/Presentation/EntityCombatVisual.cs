@@ -188,8 +188,8 @@ public sealed class EntityCombatVisual : MonoBehaviour
     private void LateUpdate()
     {
         EnsureVisuals();
-        bool controlled = Host.Brain.HasPlayerView;
-        Color bodyColor = controlled ? PlayerColor : Host.Brain.HasSoulOut ? new Color(.35f, .6f, .8f) : EnemyColor;
+        bool controlled = Host.HasPlayerView;
+        Color bodyColor = controlled ? PlayerColor : Host.HasSoulOut ? new Color(.35f, .6f, .8f) : EnemyColor;
         for (int i = 0; i < Body.Length; i++)
         {
             if (Body[i] == null) continue;
@@ -232,7 +232,7 @@ public sealed class EntityCombatVisual : MonoBehaviour
 
     private void RefreshStatus(bool controlled)
     {
-        Title.text = Host.IsDead ? "已倒下 · Backspace 重来" : controlled ? "你正在控制" : Host.Brain.HasSoulOut ? "原角色 · 附身中" : name == "Enemy" ? "敌人" : name;
+        Title.text = Host.IsDead ? "已倒下 · Backspace 重来" : controlled ? "你正在控制" : Host.HasSoulOut ? "原角色 · 附身中" : name == "Enemy" ? "敌人" : name;
         Title.color = controlled ? PlayerColor : EnemyColor;
         Health.text = $"生命 {Host.Vitals.CurrentHp:0.#} / {Host.Vitals.MaxHp:0.#}";
         Faith.text = $"信心 {Host.Vitals.Faith?.Current ?? 0:+0;-0;0}";
@@ -259,9 +259,9 @@ public sealed class EntityCombatVisual : MonoBehaviour
                     }
                 special = remaining > 0f && !permanent ? $"冠冕吸血 {remaining:0.0}s · 命中回血" : "冠冕吸血中 · 命中才回血";
             }
-            if (Host.Brain.IsPossessing)
+            if (Host.IsPossessing)
             {
-                special = $"附身剩余 {Host.Brain.PossessionRemaining:0.0}s";
+                special = $"附身剩余 {Host.PossessionRemaining:0.0}s";
             }
             Skills.text += "\n" + special;
         }

@@ -211,15 +211,15 @@ public sealed class EntityVisual : MonoBehaviour
         // 附身状态（buff 驱动：载体的剩余时长就是会话剩余时间，无需任何会话管理器）。
         // 两种身份只读展示；已有会话时禁止嵌套附身。
         string possessionLine = "";
-        if (brain.IsPossessing)
+        if (Entity.IsPossessing)
         {
-            possessionLine += $"\n附身中｜剩余 {brain.PossessionRemaining:0.0}s（到期自动换回）";
+            possessionLine += $"\n附身中｜剩余 {Entity.PossessionRemaining:0.0}s（到期自动换回）";
         }
-        if (brain.HasSoulOut)
+        if (Entity.HasSoulOut)
         {
             possessionLine += "\n灵魂出窍中（操作权在别处）";
         }
-        string castLine = brain.LastSkillCast is { } cast
+        string castLine = Entity.LastSkillCast is { } cast
             ? $"\n上次释放 {(cast.Kind == Assets.Scripts.Entity.Data.Skill.EnumSkillType.Crown ? "冠冕" : "潮汐")}·{(cast.IsBurst ? "强化" : "普通")}｜归零前信心 {cast.FaithBeforeCast}"
             : "";
         string aiLine = brain.AiSource != null

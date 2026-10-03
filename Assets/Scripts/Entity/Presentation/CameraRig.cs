@@ -172,7 +172,7 @@ public sealed class CameraRig : MonoBehaviour
     // 十字键左 = 左肩，十字键右 = 右肩，其他绑定（键盘 F1）= 左右切换
     private void OnSwitchShoulder(InputAction.CallbackContext context)
     {
-        if (FollowEntity == null || !FollowEntity.Brain.HasPlayerView || !CameraComponent.enabled)
+        if (FollowEntity == null || !FollowEntity.HasPlayerView || !CameraComponent.enabled)
         {
             return;
         }
@@ -241,7 +241,7 @@ public sealed class CameraRig : MonoBehaviour
         // 相机本身不动、不换跟随目标。多人接缝：分屏下多个玩家相机并亮即是分屏，
         // 将来按"驱动本实体的是本玩家吗"细化（各自设备配对/网络中继）
         // 原角色死亡收尾保留视角，但 Brain 不再绑定玩家操作。
-        bool playerDriven = FollowEntity.Brain.HasPlayerView;
+        bool playerDriven = FollowEntity.HasPlayerView;
         SyncCameraActive(playerDriven);
         if (!playerDriven)
         {

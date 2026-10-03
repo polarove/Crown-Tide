@@ -8,7 +8,8 @@ using UnityEngine;
 /// Apply（叠加策略/霸体仲裁）→ Tick（时长/周期/到期移除）→ SyncProjection：
 /// - 数值成分 → GetStatMultiplier 乘法链（消费读点见 EnumStatType）；
 /// - 控制成分 → 多挂载单表达：活跃失控条目取 controlPriority 最高者（同强度先挂者保持），
-///   经 Brain 的注册表（EnumControlKind → CC 层状态）映射推入——压制其余层（冻结而非清除）；
+///   由 ActiveControlKind 报数、Brain.SyncControlProjection 经注册表映射推入 CC 层——
+///   压制其余层（冻结而非清除）。层槽写权归 Brain（审视 #1 收口），容器不碰状态机；
 /// - 标签成分 → SyncOwned 投影进 Entity 标签（条目摘 = 位清，不碰状态直写位）。
 /// 霸体仲裁在施加时刻定死（controlActive = hasControl 且当时非霸体，Capability 仲裁）：
 /// 免疫≠解控——施加后才获得的霸体不清在挂的失控，失去霸体也不补挂（要补 = 重新施加一次）。
@@ -222,6 +223,26 @@ public sealed class ModifierList
         }
     }
 
+    /// <summary>当前失控呈现：活跃失控条目中 ControlPriority 最高者的 ControlKind
+    /// （列表序稳定 = 同强度先挂者胜）；无失控条目 = null。
+    /// Brain.SyncControlProjection 据此驱动 CC 层——容器只报数，不写状态机（审视 #1）</summary>
+    public EnumControlKind? ActiveControlKind
+    {
+        get
+        {
+            Modifier? best = null;
+            for (int i = 0; i < Modifiers.Count; i++)
+            {
+                Modifier modifier = Modifiers[i];
+                if (modifier.ControlActive && (best == null || modifier.Effect.ControlPriority > best.Effect.ControlPriority))
+                {
+                    best = modifier;
+                }
+            }
+            return best?.Effect.ControlKind;
+        }
+    }
+
     /// <summary>驱散：移除类别与 filter 有交集（位与非零）的全部条目，返回移除条数。
     /// 例：Dispel(Debuff) = 净化、Dispel(Poison) = 驱毒、Dispel(All) = 全清。
     /// 注意：All 不含 ArmorSet（装备来源是状态派生的，不该被驱散语义清掉——见 EnumModifierCategory）</summary>
@@ -338,56 +359,28 @@ public sealed class ModifierList
         return sb.ToString();
     }
 
-    /// <summary>把活跃条目投影到标签与 CC 层状态（Apply/Tick/Dispel 末尾统一走这里）</summary>
+    /// <summary>把活跃条目投影出去（Apply/Tick/Dispel/Remove 末尾统一走这里）：
+    /// 标签投影本地做，失控呈现回调 Brain（层槽写权收口，审视 #1）</summary>
     private void SyncProjection()
     {
-        // 1) 失控呈现：活跃 controlActive 条目中 controlPriority 最高者（列表序稳定 = 同强度先挂者胜）
-        Modifier? best = null;
-        for (int i = 0; i < Modifiers.Count; i++)
-        {
-            Modifier modifier = Modifiers[i];
-            if (modifier.ControlActive && (best == null || modifier.Effect.ControlPriority > best.Effect.ControlPriority))
-            {
-                best = modifier;
-            }
-        }
+        SyncTags();
+        // 容器只报"我变了"，CC 层的状态机写入统一在 Brain（失控当帧压制的时序契约不变）
+        Entity.Brain.SyncControlProjection();
+    }
 
-        // 2) 标签投影：各活跃条目的 grantedTag 或起来；有失控条目再补 Controlled
+    /// <summary>标签投影：各活跃条目的 grantedTag 或起来；有失控条目再补 Controlled</summary>
+    private void SyncTags()
+    {
         ulong desired = 0ul;
         for (int i = 0; i < Modifiers.Count; i++)
         {
             desired |= (ulong)Modifiers[i].Effect.GrantedTag;
         }
-        if (best != null)
+        if (HasControlActive)
         {
             desired |= (ulong)EnumEntityTag.Controlled;
         }
         Mask |= desired;   // 只扩张：位一旦归容器管，条目摘除后经 SyncOwned 清零
         Entity.Tags.SyncOwned(Mask, desired);
-
-        // 3) CC 层状态呈现。失控解除（best 变 null）不在此清层——EntityStunState 轮询 HasControlActive
-        //    自清；取舍：解除当帧门禁（Capability 查 CC 层活跃）会多拦一帧，观感级差异
-        if (best == null)
-        {
-            return;
-        }
-        EntityStateMachine machine = Entity.Brain.StateMachine;
-        EntityState target = Entity.Brain.ResolveControlState(best.Effect.ControlKind);
-        EntityState current = machine.GetActive(EnumStateLayer.CrowdControl)!;   // 未激活层返回 null 是合法值，故此处显式容忍
-        if (current == target)
-        {
-            return;
-        }
-        if (current == null)
-        {
-            // 失控起手：打断主动动作（攻击 Exit 顺带摘 Swinging 标签）
-            machine.ClearState(EnumStateLayer.Action);
-        }
-        else
-        {
-            // 呈现切换：更高/低强度条目接管（将来 Frozen↔Stun 升级/降级），旧呈现退场
-            machine.ClearState(EnumStateLayer.CrowdControl);
-        }
-        machine.ChangeState(target);
     }
 }

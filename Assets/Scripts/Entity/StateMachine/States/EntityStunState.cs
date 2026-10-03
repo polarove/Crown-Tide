@@ -1,14 +1,14 @@
 using UnityEngine;
 
 /// <summary>
-/// 眩晕（CrowdControl 层）：失控效果的默认呈现状态（Modifiers 投影经 Brain 注册表映射；
-/// 将来冰冻/石化 = 新状态类 + 枚举成员 + 注册一行，全"加"零"改"）。
+/// 眩晕（CrowdControl 层）：失控效果的默认呈现状态（Brain.SyncControlProjection 经
+/// 注册表映射推入；将来冰冻/石化 = 新状态类 + 枚举成员 + 注册一行，全"加"零"改"）。
 /// 压制其余全部层——Locomotion/Aerial/Action 冻结（状态保留但不执行），
 /// 物理照常（重力/地面检测在 Brain 管线）。
 /// 时长职责在 Modifiers（条目到期/驱散/被更高优先级呈现替换），本状态不计时——
 /// 只轮询"还有没有失控条目"来决定退场，Enter/Exit 无操作。
 /// 多挂载单表达：多条失控同时活跃时只有最高优先级者的映射状态在 CC 层（同强度先挂保持）；
-/// 更强者接管时容器先清本层再推新状态，逐个解除自动降级到剩余最高者。
+/// 更强者接管时 Brain 投影先清本层再推新状态，逐个解除自动降级到剩余最高者。
 /// 站桩：清移动方向 + 零速 Move 贴地；起跳/攻击被 Capability 门禁拦下。
 /// </summary>
 public sealed class EntityStunState : EntityState

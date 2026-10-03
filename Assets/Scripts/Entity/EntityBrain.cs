@@ -71,6 +71,43 @@ public sealed class EntityBrain : MonoBehaviour
         return controlStates.TryGetValue(kind, out EntityState state) ? state : StunState;
     }
 
+    /// <summary>失控呈现投影（审视 #1 层槽写权收口：状态机写入统一在 Brain，
+    /// ModifierList 变更时回调这里，自身管线内 Apply 也经同一入口——失控当帧压制的时序不变）。
+    /// 失控解除不在此清层——EntityStunState 轮询 HasControlActive 自清
+    /// （保留原取舍：解除当帧门禁会多拦一帧，观感级差异）</summary>
+    internal void SyncControlProjection()
+    {
+        EntityStateMachine? machine = StateMachine;   // 装配门：Bootstrap 中段（状态机未建时）可能为 null
+        ModifierList? modifiers = Modifiers;
+        if (machine == null || modifiers == null)
+        {
+            return;
+        }
+
+        EnumControlKind? kind = modifiers.ActiveControlKind;
+        if (kind == null)
+        {
+            return;
+        }
+        EntityState target = ResolveControlState(kind.Value);
+        EntityState? current = machine.GetActive(EnumStateLayer.CrowdControl);
+        if (current == target)
+        {
+            return;
+        }
+        if (current == null)
+        {
+            // 失控起手：打断主动动作（攻击 Exit 顺带摘 Swinging 标签）
+            machine.ClearState(EnumStateLayer.Action);
+        }
+        else
+        {
+            // 呈现切换：更高/低强度条目接管（将来 Frozen↔Stun 升级/降级），旧呈现退场
+            machine.ClearState(EnumStateLayer.CrowdControl);
+        }
+        machine.ChangeState(target);
+    }
+
     // 两输入源组件（双源同挂是附身演示的前提；缺失对应源时该侧绑定失败并警告）
     public PlayerInputSource? PlayerSource;
     public AITreeInputSource? AiSource;
@@ -82,10 +119,12 @@ public sealed class EntityBrain : MonoBehaviour
     // 首帧附身唯一性自检标记（一次性）
     private bool CheckedPossessionUniqueness;
 
-    // 每次附身的双方关联；持续状态仍由双方 Buff 表达。
-    private PossessionLink? ActivePossession;
-    private bool DeathView;
-    public bool HasPlayerView => DeathView || InputSource is PlayerInputSource;
+    // 附身会话/死亡视点/技能快照已拆归 Entity（审视 #7：编排者不收异质状态）。
+    // 下面只留只读转发，保既有调用点（表现层/测试）稳定——新代码请直接读 Entity 的对应属性。
+    public bool IsPossessing => Entity?.IsPossessing ?? false;
+    public float PossessionRemaining => Entity?.PossessionRemaining ?? 0f;
+    public bool HasSoulOut => Entity?.HasSoulOut ?? false;
+    public bool HasPlayerView => Entity?.HasPlayerView ?? InputSource is PlayerInputSource;
 
     /// <summary>首帧自检：提示"多个玩家驱动实体共享本地输入设备"的单机现象。
     /// 多人语义（需求钦定）：玩家驱动 = Brain.InputSource 是 PlayerInputSource——多人下
@@ -127,8 +166,8 @@ public sealed class EntityBrain : MonoBehaviour
             Entity.Slots.EquipmentChanged -= OnEquipmentChanged;
         }
         Entity = entity;
-        DeathView = false;
-        LastSkillCast = null;
+        entity.DeathView = false;
+        entity.LastSkillCast = null;
         Entity.Vitals.Died += OnDied;
 
         Entity.Motor.Initialize();
@@ -224,59 +263,8 @@ public sealed class EntityBrain : MonoBehaviour
     // 多人下各客户端用同一套规则就能初步裁决"能不能附身"。
     // Brain 共用技能门禁，保存双方关联，在载体失效时归还控制权并清理双方。
 
-    /// <summary>每次附身的运行时关联；Buff 是持续状态，关联只负责控制权归还。</summary>
-    private sealed class PossessionLink
-    {
-        public readonly EntityBrain Origin;
-        public readonly EntityBrain Target;
-        public readonly PossessionEffect Carrier;
-        public readonly PossessionEffect Marker;
-        public readonly IInputSource? OriginalInput;
-        public readonly IInputSource? TargetInput;
-        private bool Ended;
-
-        public PossessionLink(EntityBrain origin, EntityBrain target, PossessionEffect carrier, PossessionEffect marker)
-        {
-            Origin = origin;
-            Target = target;
-            Carrier = carrier;
-            Marker = marker;
-            OriginalInput = origin.InputSource;
-            TargetInput = target.InputSource;
-        }
-
-        public bool IsValid => !Ended && Origin != null && Target != null
-            && Origin.Entity != null && Target.Entity != null
-            && Origin.isActiveAndEnabled && Target.isActiveAndEnabled
-            && !Origin.Entity.IsDead && !Target.Entity.IsDead
-            && Origin.Modifiers.IsHolding(Marker) && Target.Modifiers.IsHolding(Carrier);
-
-        public void End()
-        {
-            if (Ended) return;
-            Ended = true;
-            // 先清关联，避免死亡/禁用回调重复收尾；先释放目标，后恢复原角色。
-            if (Target != null)
-            {
-                Target.ActivePossession = null;
-                Target.Modifiers.Remove(Carrier);
-                Target.BindInputSource(TargetInput);
-            }
-            if (Origin != null)
-            {
-                Origin.ActivePossession = null;
-                Origin.Modifiers.Remove(Marker);
-                bool dead = Origin.Entity == null || Origin.Entity.IsDead;
-                Origin.DeathView = dead && OriginalInput is PlayerInputSource;
-                Origin.BindInputSource(dead ? Origin.AiSource : OriginalInput);
-            }
-        }
-    }
-
-    public bool IsPossessing => ActivePossession != null;
-    public float PossessionRemaining => ActivePossession != null && ActivePossession.Target != null
-        ? ActivePossession.Target.Modifiers.GetRemaining(ActivePossession.Carrier) : 0f;
-    public bool HasSoulOut => ActivePossession != null && ReferenceEquals(ActivePossession.Origin, this);
+    // PossessionLink 已提出为顶级 internal 类（PossessionLink.cs，审视 #7）；
+    // 关联存储在双方 Entity.ActivePossession 上，查询走 Entity / 上面的只读转发。
 
     /// <summary>固有主动技能：与槽位技能共用释放门禁；两个效果必须角色正确且没有玩法载荷。</summary>
     public bool TryBeginPossession(Entity target, PossessionEffect? possessionEffect, PossessionEffect? soulOutEffect = null)
@@ -286,7 +274,7 @@ public sealed class EntityBrain : MonoBehaviour
             || !isActiveAndEnabled || !target.Brain.isActiveAndEnabled
             || target.IsDead || !Capability.CanUseSkill(possessionEffect.AllowWhileControlled)
             || InputSource == null || target.Brain.InputSource is PlayerInputSource
-            || target.Brain.PlayerSource == null || ActivePossession != null || target.Brain.ActivePossession != null
+            || target.Brain.PlayerSource == null || host.ActivePossession != null || target.ActivePossession != null
             || Modifiers.GetHeld<IPossessionEffect>() != null || target.Brain.Modifiers.GetHeld<IPossessionEffect>() != null
             || possessionEffect.PossessionRole != EnumPossessionRole.Possessed
             || soulOutEffect.PossessionRole != EnumPossessionRole.SoulOut
@@ -299,9 +287,9 @@ public sealed class EntityBrain : MonoBehaviour
         var link = new PossessionLink(this, target.Brain, possessionEffect, soulOutEffect);
         target.Brain.Modifiers.Apply(possessionEffect);
         Modifiers.Apply(soulOutEffect, 0f); // 永久实例；不修改共享模板，也不信任旧演示标记的时长。
-        ActivePossession = link;
-        target.Brain.ActivePossession = link;
-        DeathView = false;
+        host.ActivePossession = link;
+        target.ActivePossession = link;
+        host.DeathView = false;
         BindInputSource(AiSource);
         target.Brain.BindInputSource(link.OriginalInput is PlayerInputSource ? target.Brain.PlayerSource : target.Brain.AiSource);
         return true;
@@ -317,7 +305,7 @@ public sealed class EntityBrain : MonoBehaviour
     /// <summary>任一侧可调用；只延长本次目标效果，不修改资产。</summary>
     public bool ExtendPossession(float seconds)
     {
-        PossessionLink? link = ActivePossession;
+        PossessionLink? link = Entity?.ActivePossession;
         return link != null && link.IsValid && link.Target.Modifiers.ExtendDuration(link.Carrier, seconds);
     }
 
@@ -325,13 +313,14 @@ public sealed class EntityBrain : MonoBehaviour
     public void EndPossession()
     {
         // 周期伤害中死亡时不能在效果列表遍历中移除条目；Tick 后立即收尾。
-        PossessionLink? link = ActivePossession;
+        PossessionLink? link = Entity?.ActivePossession;
         if (link != null && !link.Origin.Modifiers.IsTicking && !link.Target.Modifiers.IsTicking) link.End();
     }
 
     private void ReconcilePossession(ModifierList modifiers)
     {
-        if (ActivePossession != null && !ActivePossession.IsValid) EndPossession();
+        PossessionLink? link = Entity?.ActivePossession;
+        if (link != null && !link.IsValid) EndPossession();
     }
 
     private void OnDied(CharacterVitals vitals) => EndPossession();
@@ -485,7 +474,8 @@ public sealed class EntityBrain : MonoBehaviour
         }
     }
 
-    public SkillCastResult? LastSkillCast { get; private set; }
+    /// <summary>最近成功释放的技能快照（存储在 Entity，审视 #7；转发保既有调用点稳定）</summary>
+    public SkillCastResult? LastSkillCast => Entity?.LastSkillCast;
 
     /// <summary>玩家与AI共用起手规则；后退移动不覆盖攻击方向。仅成功起手时调用。</summary>
     public void FaceAttackDirection()
@@ -524,7 +514,7 @@ public sealed class EntityBrain : MonoBehaviour
         foreach (ModifierEffect effect in effects) Modifiers.Apply(effect);
         if (kind == EnumSkillType.Tide)
             foreach (ModifierEffect effect in skill.AfterTideEffects) Modifiers.Apply(effect);
-        LastSkillCast = result;
+        Entity.LastSkillCast = result;
         return true;
     }
 
