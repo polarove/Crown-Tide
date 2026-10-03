@@ -95,6 +95,7 @@ public sealed class CameraRig : MonoBehaviour
     private float LookDownPullFactor = 1f;          // 低头收缩因子（1 = 不收缩）
     private float BaseFieldOfView;                  // 初始 FOV（奔跑加速的基准）
     private bool IsFirstPersonMode;
+    private bool HasActivatedView;
     private float FirstPersonBlendFactor;           // 0 = 第三人称，1 = 第一人称
     private Renderer[] EntityMeshRenderers = null!;   // 第一人称显隐（首次切换时 ??= 取，表现层自持对象，只读数据不改）
     private Camera CameraComponent = null!;         // Awake 缓存（RequireComponent 保证存在；亮灭开关）
@@ -248,6 +249,12 @@ public sealed class CameraRig : MonoBehaviour
             return;   // 熄灭的相机：不锁鼠标、不读视角输入（再亮时视角不跳）、不更新跟随
         }
         Transform followTarget = FollowEntity.transform;
+        // 首次接管一具身体时朝向它正在看的方向；返回已用过的身体保留原视角。
+        if (!HasActivatedView)
+        {
+            YawRotationAngle = followTarget.eulerAngles.y;
+            HasActivatedView = true;
+        }
 
         // 仅读取所属实体已配对的设备，保留各玩家设备隔离；死亡视角保留最后的设备范围。
         PlayerInput? playerInput = FollowEntity.GetComponent<PlayerInput>();

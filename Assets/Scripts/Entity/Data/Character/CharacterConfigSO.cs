@@ -27,6 +27,9 @@ public class CharacterConfigSO : ScriptableObject
     [Min(0), Tooltip("击杀敌怪额外冠冕事件量；0 = 尚未配置")]
     public int FaithGainPerEnemyKill;
 
+    [Tooltip("本体阵营标识；0 = 未指定。两个非零且不同的阵营视为敌对；附身换输入源不改变阵营")]
+    public int FactionId;
+
     [Header("手部容量")]
     [Tooltip("双手总容量：主手 + 副手武器的 handCost 之和不得超过它。5 = 双匕首(2+2)可行、巨斧(5)单持可行但无法双持、圣剑(9)装不上")]
     public int WeaponCapacity = 5;

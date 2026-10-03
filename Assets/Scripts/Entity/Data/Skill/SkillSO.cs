@@ -19,6 +19,14 @@ public class SkillSO : ScriptableObject
     [Min(0f)]
     public float Cooldown = 5f;
 
+    [Header("攻击执行（复用统一出招段，默认关闭）")]
+    public bool HasAttack;
+    public ComboEntry Attack;
+
+    [Tooltip("满信心使用独立攻击段；关闭时沿用普通段")]
+    public bool UseBurstAttack;
+    public ComboEntry BurstAttack;
+
     [Header("统一 Effect（施加到释放者）")]
     [Tooltip("普通释放的持续效果；空列表合法，不补造角色专属技能")]
     public ModifierEffect[] Effects = Array.Empty<ModifierEffect>();
@@ -31,4 +39,19 @@ public class SkillSO : ScriptableObject
 
     [Tooltip("成功释放时先驱散这些类别；None = 不驱散，解控技能须同时显式允许控制中释放")]
     public EnumModifierCategory DispelOnCast = EnumModifierCategory.None;
+
+    /// <summary>纯配置校验；统一数据门禁和 UI 资格查询共用，不执行技能。</summary>
+    public bool IsAttackConfigurationValid(bool burst)
+    {
+        if (!HasAttack) return true;
+        ComboEntry attack = burst && UseBurstAttack ? BurstAttack : Attack;
+        return Finite(attack.Windup) && attack.Windup >= 0f
+            && Finite(attack.Windup + attack.Hit + attack.Recovery)
+            && Finite(attack.Hit) && attack.Hit > 0f
+            && Finite(attack.Recovery) && attack.Recovery >= 0f
+            && Finite(attack.MeleeDamage) && attack.MeleeDamage > 0f
+            && attack.IsHitVolumeValid();
+    }
+
+    private static bool Finite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
 }

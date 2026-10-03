@@ -3,7 +3,7 @@ using UnityEngine;
 /// <summary>
 /// 指令缓冲（Input 层 → Logic 层的唯一桥）：全部指令的扁平载体。
 /// 指令语义分两类（旧黑板指令区的语义平移，需求钦定）：
-/// - 电平型（MoveDirection/SprintActive/AimActive）：表达"现在正在"。
+/// - 电平型（MoveDirection/LookDirection/SprintActive/AimActive）：表达"现在正在"。
 ///   Brain 帧首 ResetLevels——输入源沉默 = 站桩（附身切换帧、输入源早退路径都安全）；
 /// - 边沿型（JumpQueued/AttackQueued/SkillSlotQueued）：表达"请求一次"。
 ///   输入源在消息回调/决策处置位，管线消费点无条件清空（无缓冲，清在帧首会丢输入）。
@@ -16,6 +16,7 @@ public sealed class CommandBuffer
 {
     // ---- 电平型（Brain 帧首重置；输入源每帧重写）----
     public Vector3 MoveDirection;      // 世界方向（限幅 1）：玩家=视角相对换算，AI=朝目标
+    public Vector3 LookDirection;      // 水平攻击意图：玩家=自己的视角，AI=自己的目标；与移动独立
     public bool SprintActive;          // 加速意图
     public bool AimActive;             // 瞄准意图（射击连招的电平半边，翻译在 Brain.TryConsumeAction）
 
@@ -29,6 +30,7 @@ public sealed class CommandBuffer
     public void ResetLevels()
     {
         MoveDirection = Vector3.zero;
+        LookDirection = Vector3.zero;
         SprintActive = false;
         AimActive = false;
     }

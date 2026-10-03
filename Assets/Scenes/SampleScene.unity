@@ -140,6 +140,7 @@ GameObject:
   - component: {fileID: 249588925}
   - component: {fileID: 249588924}
   - component: {fileID: 249588923}
+  - component: {fileID: 249588931}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -331,6 +332,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Entity.Runtime::AITreeInputSource
   Target: {fileID: 522507367}
   DecisionInterval: 0.2
+  EnableMeleeAttack: 0
+  MeleeAttackRange: 1.5
+  MeleeAttackInterval: 0
 --- !u!114 &249588927
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -364,13 +368,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e9393355fcc9ec540b3b2c03439160a7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Entity.Runtime::CharacterSlotContainer
-  UnarmedComboGraph: {fileID: 0}
+  UnarmedComboGraph: {fileID: 11400000, guid: 2e81033042809234b81cdd53dbadae5b, type: 2}
   Weapons:
     MainHand: {fileID: 0}
     OffHand: {fileID: 0}
   Skills:
-    Crown: {fileID: 0}
-    Tide: {fileID: 0}
+    Crown: {fileID: 11400000, guid: 05c138630008c9c4f8b76b178e49b9ed, type: 2}
+    Tide: {fileID: 11400000, guid: a81b9a98349360c418c9c93b1222df77, type: 2}
     CrownCooldownRemaining: 0
     TideCooldownRemaining: 0
   Armor:
@@ -422,6 +426,18 @@ MonoBehaviour:
   GroundMask:
     serializedVersion: 2
     m_Bits: 4294967295
+--- !u!114 &249588931
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 249588915}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f9c5a3ca60e430f4780a3b90e4075499, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Entity.Runtime::EntityCombatVisual
 --- !u!1 &330585543
 GameObject:
   m_ObjectHideFlags: 0
@@ -920,6 +936,7 @@ GameObject:
   - component: {fileID: 522507357}
   - component: {fileID: 522507356}
   - component: {fileID: 522507355}
+  - component: {fileID: 522507368}
   m_Layer: 0
   m_Name: Enemy
   m_TagString: Untagged
@@ -984,6 +1001,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Entity.Runtime::AITreeInputSource
   Target: {fileID: 249588920}
   DecisionInterval: 0.2
+  EnableMeleeAttack: 1
+  MeleeAttackRange: 1.5
+  MeleeAttackInterval: 1.5
 --- !u!114 &522507359
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1017,13 +1037,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e9393355fcc9ec540b3b2c03439160a7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Entity.Runtime::CharacterSlotContainer
-  UnarmedComboGraph: {fileID: 0}
+  UnarmedComboGraph: {fileID: 11400000, guid: 2e81033042809234b81cdd53dbadae5b, type: 2}
   Weapons:
     MainHand: {fileID: 0}
     OffHand: {fileID: 0}
   Skills:
-    Crown: {fileID: 0}
-    Tide: {fileID: 0}
+    Crown: {fileID: 11400000, guid: 05c138630008c9c4f8b76b178e49b9ed, type: 2}
+    Tide: {fileID: 11400000, guid: a81b9a98349360c418c9c93b1222df77, type: 2}
     CrownCooldownRemaining: 0
     TideCooldownRemaining: 0
   Armor:
@@ -1202,6 +1222,76 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &522507368
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 522507354}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f9c5a3ca60e430f4780a3b90e4075499, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Entity.Runtime::EntityCombatVisual
+--- !u!1 &722297617
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 722297620}
+  - component: {fileID: 722297619}
+  - component: {fileID: 722297618}
+  m_Layer: 0
+  m_Name: Mechanism Demo
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &722297618
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 722297617}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c40ab9e6b6e545241a42f1b2af251c12, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Entity.Runtime::DemoLoopInput
+--- !u!114 &722297619
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 722297617}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 20f7d079b0f3b9d469d5066325c0fcd3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Entity.Runtime::DemoLoopReset
+  Enemy: {fileID: 522507356}
+--- !u!4 &722297620
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 722297617}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &832575517
 GameObject:
   m_ObjectHideFlags: 0
@@ -1374,3 +1464,4 @@ SceneRoots:
   - {fileID: 249588920}
   - {fileID: 522507367}
   - {fileID: 514491417}
+  - {fileID: 722297620}

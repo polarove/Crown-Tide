@@ -219,12 +219,20 @@ public sealed class EntityVisual : MonoBehaviour
         {
             possessionLine += "\n灵魂出窍中（操作权在别处）";
         }
+        string castLine = brain.LastSkillCast is { } cast
+            ? $"\n上次释放 {(cast.Kind == Assets.Scripts.Entity.Data.Skill.EnumSkillType.Crown ? "冠冕" : "潮汐")}·{(cast.IsBurst ? "强化" : "普通")}｜归零前信心 {cast.FaithBeforeCast}"
+            : "";
+        string aiLine = brain.AiSource != null
+            ? $"\nAI 普攻配置 {(brain.AiSource.EnableMeleeAttack ? "开启" : "关闭")}"
+            : "";
 
         return $"{name}（{(Entity.Brain.InputSource is PlayerInputSource ? "玩家" : "AI")}｜{inputLine}）" +
             $"\n水平速度 {horizontalSpeed:F2} m/s｜竖直速度 {velocity.y:F2} m/s" +
             $"\n状态机 {machineState}{attackLine}" +
             $"\n生命 {Entity.Vitals.CurrentHp:0}/{Entity.Vitals.MaxHp:0}｜信心 {Entity.Vitals.Faith?.Current ?? 0}/±{Entity.Vitals.FaithCapacity}" +
             $"\n冠冕 {DescribeSkill(Assets.Scripts.Entity.Data.Skill.EnumSkillType.Crown)}｜潮汐 {DescribeSkill(Assets.Scripts.Entity.Data.Skill.EnumSkillType.Tide)}" +
+            $"\n冠冕吸血 {brain.Modifiers.GetCrownLifeStealRatio():P0}{castLine}" +
+            aiLine +
             $"\n效果 {brain.Modifiers.Describe()}" +
             $"\n标签 {Entity.Tags.Describe()}" +
             $"\n{weaponLine}" +

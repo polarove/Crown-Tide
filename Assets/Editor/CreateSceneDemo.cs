@@ -41,6 +41,7 @@ public static class CreateSceneDemo
 
         GameObject player = BuildPlayer();
         GameObject enemy = BuildEnemy(player.transform);
+        CreateCombatDemoAssets.ConfigureEntities(player, enemy);
         PlaceOnPlatform(scene, player, enemy);
         // 附身资产先建好：下面给玩家调试槽接线要用（幂等）
         CreateArmorSetDemoAssets.EnsurePossessionEffects();
@@ -49,6 +50,7 @@ public static class CreateSceneDemo
         CameraRig enemyCamera = ConfigureCameraRig("Enemy Camera", enemy);
         ConfigurePlayerInput(player, isPlayer: true, playerCamera);
         ConfigurePlayerInput(enemy, isPlayer: false, enemyCamera);
+        CreateMechanismDemoAssets.Configure(scene, player, enemy);
 
         // 附身不再需要场景级管理器：会话状态就是 buff——V / LB 时给目标挂「被附身」载体、
         // 给自己挂「灵魂出窍」标记，EntityBrain 感知 buff 换绑、Duration 到期自动换回

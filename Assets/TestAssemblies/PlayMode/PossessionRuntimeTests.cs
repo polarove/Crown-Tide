@@ -410,6 +410,14 @@ public sealed class PossessionRuntimeTests
 /// <summary>已保存演示场景的真实接线回归：输入源与相机随附身往返。</summary>
 public sealed class SampleScenePossessionTests
 {
+    [UnityTearDown]
+    public IEnumerator UnloadTestScene()
+    {
+        var scene = UnityEngine.SceneManagement.SceneManager.GetSceneByName("SampleScene");
+        if (scene.IsValid() && scene.isLoaded)
+            yield return UnityEngine.SceneManagement.SceneManager.UnloadSceneAsync(scene);
+    }
+
     [UnityTest]
     public IEnumerator 演示场景_双方出生不穿平台且运行后不掉落()
     {
@@ -441,7 +449,7 @@ public sealed class SampleScenePossessionTests
         }
         finally
         {
-            UnityEngine.SceneManagement.SceneManager.UnloadSceneAsync(scene);
+            // UnityTearDown 等待卸载，包含断言失败路径。
         }
         yield return null;
     }
@@ -490,7 +498,7 @@ public sealed class SampleScenePossessionTests
         }
         finally
         {
-            UnityEngine.SceneManagement.SceneManager.UnloadSceneAsync(scene);
+            // UnityTearDown 等待卸载，包含断言失败路径。
         }
         yield return null;
     }

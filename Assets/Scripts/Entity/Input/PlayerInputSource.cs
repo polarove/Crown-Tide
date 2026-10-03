@@ -25,7 +25,7 @@ public enum EnumSprintInputMode
 public sealed class PlayerInputSource : MonoBehaviour, IInputSource
 {
     [Header("视角基准")]
-    [Tooltip("移动方向的投影基准（本玩家的相机 Transform；空 = CameraRig 自动注入，也可手连）")]
+    [Tooltip("移动投影和攻击水平朝向的视角基准（本玩家相机；空 = CameraRig 自动注入，也可手连）")]
     public Transform? ViewTransform;
 
     [Tooltip("PlayerInput 未配 Actions 时的兜底资产（附身到未预配的实体用）；空 = 不兜底")]
@@ -112,7 +112,8 @@ public sealed class PlayerInputSource : MonoBehaviour, IInputSource
         Bound = true;
         PlayerInput.enabled = true;
         // 重新启用会重新自动配对；附身返回必须恢复该输入源离开前的设备。
-        if (PreviousDevices != null && PreviousDevices.Length > 0 && PreviousControlScheme != null
+        if (PlayerInput.isActiveAndEnabled && PlayerInput.user.valid
+            && PreviousDevices != null && PreviousDevices.Length > 0 && PreviousControlScheme != null
             && System.Array.TrueForAll(PreviousDevices, device => device.added))
         {
             PlayerInput.SwitchCurrentControlScheme(PreviousControlScheme, PreviousDevices);
@@ -200,6 +201,18 @@ public sealed class PlayerInputSource : MonoBehaviour, IInputSource
         EnsureEntity().Commands.AttackQueued = true;
     }
 
+    private void OnCrownSkill(InputValue inputValue)
+    {
+        if (Bound && inputValue.isPressed)
+            EnsureEntity().Commands.SkillSlotQueued = (int)EnumSkillType.Crown;
+    }
+
+    private void OnTideSkill(InputValue inputValue)
+    {
+        if (Bound && inputValue.isPressed)
+            EnsureEntity().Commands.SkillSlotQueued = (int)EnumSkillType.Tide;
+    }
+
     // 正式玩法输入：V / LB。仅提交意图，释放条件由 Brain 统一检查。
     private void OnPossess(InputValue inputValue)
     {
@@ -230,6 +243,12 @@ public sealed class PlayerInputSource : MonoBehaviour, IInputSource
 
         UpdateSprintInput(Time.deltaTime);
         UpdateMoveDirection(commands);
+        Vector3 look = ViewTransform != null ? ViewTransform.forward : host.transform.forward;
+        look.y = 0f;
+        // 正对天空／脚下时保留视角的水平朝向，避免零向量退回后退方向。
+        if (look.sqrMagnitude < 0.000001f && ViewTransform != null)
+            look = Vector3.Cross(ViewTransform.right, Vector3.up);
+        commands.LookDirection = look.normalized;
         UpdateSprintHoldPromotion(Time.deltaTime);
         UpdateDebugInput(host);
 

@@ -188,6 +188,8 @@ public sealed class EntityBrain : MonoBehaviour
             return;
         }
 
+        // 更换操作者时取消旧主动动作，避免接管后继续执行上一操作者发起的攻击。
+        if (!ReferenceEquals(InputSource, target)) StateMachine?.ClearState(EnumStateLayer.Action);
         // 先落字段再通知：控制状态唯一真相 = InputSource（读方如 CameraRig 据此判"谁在驱动"）
         InputSource = target;
         Commands.ResetLevels();
@@ -427,7 +429,8 @@ public sealed class EntityBrain : MonoBehaviour
         host.Motor.ApplyGravityAndVerticalMove(deltaTime);
 
         // 10) 转向（有移动方向时平滑转向）
-        host.Motor.RotateTowards(commands.MoveDirection, deltaTime);
+        if (machine.GetActive(EnumStateLayer.Action) is not EntityAttackState)
+            host.Motor.RotateTowards(commands.MoveDirection, deltaTime);
 
         // 11) 调试采样：位置差反推真实移动速度（一次减法可忽略）
         DebugVelocity = (transform.position - LastFramePosition) / deltaTime;
@@ -468,6 +471,7 @@ public sealed class EntityBrain : MonoBehaviour
                 {
                     AttackState.BeginCombo();
                 }
+                FaceAttackDirection();
                 machine.ChangeState(AttackState);
             }
             commands.AttackQueued = false;   // 起手或门禁拒绝都清（无缓冲；攻击中的续段由状态自己消费）
@@ -483,6 +487,15 @@ public sealed class EntityBrain : MonoBehaviour
 
     public SkillCastResult? LastSkillCast { get; private set; }
 
+    /// <summary>玩家与AI共用起手规则；后退移动不覆盖攻击方向。仅成功起手时调用。</summary>
+    public void FaceAttackDirection()
+    {
+        Entity? host = Entity;
+        if (host == null) return;
+        Vector3 look = host.Commands.LookDirection;
+        host.Motor.FaceDirection(look.sqrMagnitude > 0.000001f ? look : host.Commands.MoveDirection);
+    }
+
     /// <summary>统一能力、装配、冷却和信心门禁；失败不消费，强化在归零前判定。</summary>
     public bool TryCastSkill(EnumSkillType kind, out SkillCastResult result)
     {
@@ -494,6 +507,7 @@ public sealed class EntityBrain : MonoBehaviour
             || !Capability.CanCastSkill(kind)) return false;
 
         bool burst = slots.IsBurstReady(kind, faith);
+        ComboEntry attack = burst && skill.UseBurstAttack ? skill.BurstAttack : skill.Attack;
         ModifierEffect[] effects = burst && skill.BurstEffects != null && skill.BurstEffects.Length > 0
             ? skill.BurstEffects : skill.Effects;
         if (!ValidSkillEffects(effects) || (kind == EnumSkillType.Tide && !ValidSkillEffects(skill.AfterTideEffects)))
@@ -501,6 +515,12 @@ public sealed class EntityBrain : MonoBehaviour
         result = new SkillCastResult(kind, faith!.Current, burst);
         if (!slots.Consume(kind, faith)) return false;
         if (skill.DispelOnCast != EnumModifierCategory.None) Modifiers.Dispel(skill.DispelOnCast);
+        if (skill.HasAttack)
+        {
+            FaceAttackDirection();
+            AttackState.BeginSingle(attack, kind);
+            StateMachine.ChangeState(AttackState);
+        }
         foreach (ModifierEffect effect in effects) Modifiers.Apply(effect);
         if (kind == EnumSkillType.Tide)
             foreach (ModifierEffect effect in skill.AfterTideEffects) Modifiers.Apply(effect);
@@ -579,7 +599,7 @@ public sealed class EntityBrain : MonoBehaviour
     }
 
     /// <summary>命中结算接缝。敌我关系由调用方传入，不能根据当前输入源猜测阵营。
-    /// 命中检测尚未接入；信心量读配置，吸血仅冠冕命中使用实际损失生命。</summary>
+    /// 普通近战状态已接入；信心量读配置，吸血仅冠冕命中使用实际损失生命。</summary>
     public float ResolveHit(Entity target, float rawAmount, bool enemyHit, EnumSkillType? skillKind = null)
     {
         if (Entity == null || Entity.IsDead || target == null || target == Entity || target.IsDead

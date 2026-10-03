@@ -8,6 +8,13 @@ using UnityEngine.TestTools;
 
 public sealed class PossessionCameraInputTests
 {
+    [UnityTearDown]
+    public IEnumerator UnloadTestScene()
+    {
+        Scene scene = SceneManager.GetSceneByName("SampleScene");
+        if (scene.IsValid() && scene.isLoaded) yield return SceneManager.UnloadSceneAsync(scene);
+    }
+
     [UnityTest]
     public IEnumerator 鼠标转向和切肩_两次附身返回后仍可使用()
     {
@@ -22,6 +29,7 @@ public sealed class PossessionCameraInputTests
 
     private static IEnumerator VerifyRoundTrips(bool useGamepad)
     {
+        using var focus = new SimulatedInputFocusScope();
         Keyboard keyboard = InputSystem.AddDevice<Keyboard>();
         Mouse mouse = InputSystem.AddDevice<Mouse>();
         Gamepad gamepad = InputSystem.AddDevice<Gamepad>();
@@ -40,6 +48,8 @@ public sealed class PossessionCameraInputTests
             if (useGamepad) input.SwitchCurrentControlScheme("Gamepad", gamepad);
             else input.SwitchCurrentControlScheme("Keyboard&Mouse", keyboard, mouse);
             yield return null;
+            yield return null; // 等 LateUpdate 将相机私有 Actions 的设备范围同步到新配对。
+            enemy.Brain.AiSource!.EnableMeleeAttack = false; // 相机回归不混入新增战斗行为。
             yield return VerifyLook(playerRig, mouse, gamepad, useGamepad, "附身前");
             for (int cycle = 0; cycle < 2; cycle++)
             {
@@ -87,7 +97,6 @@ public sealed class PossessionCameraInputTests
         }
         finally
         {
-            SceneManager.UnloadSceneAsync(scene);
             InputSystem.RemoveDevice(keyboard);
             InputSystem.RemoveDevice(mouse);
             InputSystem.RemoveDevice(gamepad);
@@ -98,11 +107,15 @@ public sealed class PossessionCameraInputTests
     private static IEnumerator VerifyLook(CameraRig rig, Mouse mouse, Gamepad gamepad, bool useGamepad, string stage)
     {
         Quaternion before = rig.transform.rotation;
-        if (useGamepad)
-            InputSystem.QueueStateEvent(gamepad, new GamepadState { rightStick = new Vector2(0.8f, 0f) });
-        else
-            InputSystem.QueueDeltaStateEvent(mouse.delta, new Vector2(80f, 0f));
-        yield return new WaitForSeconds(0.05f);
+        // 持续模拟数帧的实际转向手势，避免单帧 delta 在异步测试调度中先被复位。
+        for (int frame = 0; frame < 5; frame++)
+        {
+            if (useGamepad)
+                InputSystem.QueueStateEvent(gamepad, new GamepadState { rightStick = new Vector2(0.8f, 0f) });
+            else
+                InputSystem.QueueDeltaStateEvent(mouse.delta, new Vector2(16f, 0f));
+            yield return null;
+        }
         var localAsset = typeof(CameraRig).GetField("LocalInputActions", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
             ?.GetValue(rig) as InputActionAsset;
         Assert.Greater(Quaternion.Angle(before, rig.transform.rotation), 0.1f,

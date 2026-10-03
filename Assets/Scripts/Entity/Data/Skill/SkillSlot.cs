@@ -68,7 +68,8 @@ public sealed class SkillSlot
         {
             return false;
         }
-        return faith != null && (long)(int)kind * faith.Current >= skill.FaithThreshold;
+        return faith != null && (long)(int)kind * faith.Current >= skill.FaithThreshold
+            && skill.IsAttackConfigurationValid(IsBurstReady(kind, faith));
     }
 
     /// <summary>纯数据强化资格；不代表已装备、可释放或自动释放。</summary>

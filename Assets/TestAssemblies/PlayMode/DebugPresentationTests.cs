@@ -8,6 +8,14 @@ using UnityEngine.TestTools;
 
 public sealed class DebugPresentationTests
 {
+    [UnityTearDown]
+    public IEnumerator UnloadTestScene()
+    {
+        Scene scene = SceneManager.GetSceneByName("SampleScene");
+        if (scene.IsValid() && scene.isLoaded) yield return SceneManager.UnloadSceneAsync(scene);
+        DebugSystem.SetEnabled(false);
+    }
+
     [UnityTest]
     public IEnumerator 键盘V_Debug关闭时也能附身()
     {
@@ -22,6 +30,7 @@ public sealed class DebugPresentationTests
 
     private static IEnumerator VerifyPossessionInput(bool useGamepad)
     {
+        using var focus = new SimulatedInputFocusScope();
         DebugSystem.SetEnabled(false);
         Keyboard keyboard = InputSystem.AddDevice<Keyboard>();
         Mouse mouse = InputSystem.AddDevice<Mouse>();
@@ -60,7 +69,7 @@ public sealed class DebugPresentationTests
         }
         finally
         {
-            SceneManager.UnloadSceneAsync(scene);
+            // UnityTearDown 即使断言失败也等待卸载。
             InputSystem.RemoveDevice(keyboard);
             InputSystem.RemoveDevice(mouse);
             InputSystem.RemoveDevice(gamepad);
@@ -116,7 +125,7 @@ public sealed class DebugPresentationTests
         finally
         {
             DebugSystem.SetEnabled(false);
-            SceneManager.UnloadSceneAsync(scene);
+            // UnityTearDown 等待卸载，包含失败路径。
         }
         yield return null;
     }
@@ -124,6 +133,7 @@ public sealed class DebugPresentationTests
     [UnityTest]
     public IEnumerator F12和手柄Back_统一切换且松开不再次切换()
     {
+        using var focus = new SimulatedInputFocusScope();
         Keyboard keyboard = InputSystem.AddDevice<Keyboard>();
         Gamepad gamepad = InputSystem.AddDevice<Gamepad>();
         DebugSystem.SetEnabled(false);
